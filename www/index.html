@@ -581,7 +581,7 @@
         // ═══════════════════════════════════════════════════════════════
         //  CONFIGURACIÓN
         // ═══════════════════════════════════════════════════════════════
-        const NAV_ARROW_Y_FRACTION = 0.82;   // Flecha al 82% del screenH (18% desde abajo)
+        const NAV_ARROW_Y_FRACTION = 0.82;
         const COMPASS_SMOOTHING = 0.25;
         const SNAP_MAX_DISTANCE = 30;
 
@@ -780,6 +780,9 @@
             return totalDist > 0 ? distToIdx / totalDist : 0;
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  TRADUCTOR DE INSTRUCCIONES (con soporte OSRM + Mapbox)
+        // ═══════════════════════════════════════════════════════════════
         function translateInstruction(text) {
             if (!text) return text;
             let t = text;
@@ -821,7 +824,24 @@
                 [/\bArrive\b/gi, 'Llegada'],
                 [/\bYour destination is\b/gi, 'Tu destino está'],
                 [/\bmeters?\b/gi, 'metros'],
-                [/\bkilometers?\b/gi, 'kilómetros']
+                [/\bkilometers?\b/gi, 'kilómetros'],
+                // ✅ Variantes específicas de OSRM
+                [/\bContinue onto\b/gi, 'Continúa por'],
+                [/\bContinue on\b/gi, 'Continúa por'],
+                [/\bonto\b/gi, 'por'],
+                [/\bTake the exit toward\b/gi, 'Toma la salida hacia'],
+                [/\bTake the exit\b/gi, 'Toma la salida'],
+                [/\bExit\b/gi, 'Salida'],
+                [/\bSlight right\b/gi, 'Gira levemente a la derecha'],
+                [/\bSlight left\b/gi, 'Gira levemente a la izquierda'],
+                [/\bSharp right\b/gi, 'Gira bruscamente a la derecha'],
+                [/\bSharp left\b/gi, 'Gira bruscamente a la izquierda'],
+                [/\bRoundabout\b/gi, 'Rotonda'],
+                [/\bDepart\b/gi, 'Salir'],
+                [/\bNew name\b/gi, 'Continúa'],
+                [/\bWaypoint\b/gi, 'Punto de paso'],
+                [/\bFerry\b/gi, 'Ferry'],
+                [/\bYou have arrived\b/gi, 'Has llegado']
             ];
             dict.forEach(([pattern, replacement]) => { t = t.replace(pattern, replacement); });
             return t;
@@ -850,6 +870,7 @@
         const supabaseUrl = 'https://uwdojchfwmaczgdthtfr.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZG9qY2hmd21hY3pnZHRodGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNDQ4NDEsImV4cCI6MjEwMjcyMDg0MX0.jafGOwlItnzSoZ6yYlpaae16S2nlSDpPIS2316ZPJak';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // ✅ Mapbox solo para los tiles del mapa. Rutas y búsqueda usan OSRM/Nominatim (gratis)
         mapboxgl.accessToken = 'pk.eyJ1IjoiYXJuZWx2emwiLCJhIjoiY21zd2p2bmc3MW0xODJ4b284d3Zld3g4ZiJ9.zYnczMSu1o0ZaWKdRIo-Ww';
 
         let currentDriverId = null, currentDriverData = null, map = null, currentPosition = null, driverMarker = null;
@@ -888,9 +909,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  ANIMACIÓN DEL MARCADOR
-        //  FIX: El mapa sigue al marcador con OFFSET de píxeles para
-        //  que la flecha quede al 82% del screenH (18% desde abajo)
+        //  ANIMACIÓN DEL MARCADOR (con offset al 82% de la pantalla)
         // ═══════════════════════════════════════════════════════════════
         function animateMarker() {
             if (!driverMarker || !markerCurrentPos || !markerTargetPos) {
@@ -902,7 +921,6 @@
 
             try {
                 driverMarker.setLngLat([markerCurrentPos[1], markerCurrentPos[0]]);
-
                 const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
 
                 if (enNavegacion) {
@@ -913,7 +931,7 @@
                         const screenH = map.getContainer().offsetHeight || window.innerHeight;
                         const zoom = map.getZoom();
 
-                        // Calcular offset en metros para que la flecha quede al X% del screenH
+                        // Offset en metros para posicionar la flecha al 82% del screenH
                         const desiredY = screenH * NAV_ARROW_Y_FRACTION;
                         const centerY = screenH * 0.5;
                         const pixelsBelowCenter = desiredY - centerY;
@@ -965,10 +983,7 @@
 
         async function checkAutoReroute(driverLat, driverLng) {
             const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
-            if (!enNavegacion || !currentRideId || !currentRouteTarget) {
-                offRouteStartTime = null;
-                return;
-            }
+            if (!enNavegacion || !currentRideId || !currentRouteTarget) { offRouteStartTime = null; return; }
             if (isRerouting) return;
             const now = Date.now();
             if (now - lastRerouteTime < REROUTE_COOLDOWN_MS) return;
@@ -1000,7 +1015,6 @@
             try {
                 showToast('🔀 Recalculando ruta...', 'route');
                 speakInstruction('Recalculando ruta');
-
                 const newPosition = [driverLat, driverLng];
 
                 if (currentRideStatus === 'aceptado') {
@@ -1644,7 +1658,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  drawRoute — AHORA CON LINEA QUE SE BORRA POR FILTRADO DE COORDS
+        //  drawRoute — AHORA USA OSRM (gratis, sin token)
         // ═══════════════════════════════════════════════════════════════
         async function drawRoute(originCoords, waypointCoords, destinationCoords) {
             if (!map) return;
@@ -1672,18 +1686,20 @@
             else coordinates = [[originCoords[1],originCoords[0]],[waypointCoords[1],waypointCoords[0]],[destinationCoords[1],destinationCoords[0]]];
 
             const coordsString = coordinates.map(c => c.join(',')).join(';');
-            const url = `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordsString}?geometries=geojson&steps=true&language=es&voice_units=metric&access_token=${mapboxgl.accessToken}`;
+            // ✅ OSRM público — gratis, sin token, sin cuenta
+            const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
 
             try {
+                dlog('🛣️ Calculando ruta con OSRM...', 'info');
                 const response = await fetch(url);
                 const data = await response.json();
+
                 if (data.routes && data.routes.length > 0) {
                     const route = data.routes[0];
-                    currentNavigationSteps = route.legs.flatMap(leg => leg.steps);
+                    currentNavigationSteps = route.legs.flatMap(leg => leg.steps || []);
                     currentNavigationIndex = 0;
                     updateNavigationPanel(currentNavigationSteps[0]);
 
-                    // Fuente completa (fondo oscuro translúcido)
                     const fullGeojson = { type: 'Feature', properties: {}, geometry: route.geometry };
                     map.addSource('route', { type: 'geojson', data: fullGeojson });
                     map.addLayer({
@@ -1694,7 +1710,6 @@
                         paint: { 'line-color': '#1a1a1a', 'line-width': 8, 'line-opacity': 0.4 }
                     });
 
-                    // Fuente remaining (naranja, se va a actualizar)
                     map.addSource('route-remaining', {
                         type: 'geojson',
                         data: {
@@ -1716,44 +1731,60 @@
                     window.currentRouteDistance = route.distance || 1000;
                     lastRouteProgressIndex = 0;
 
-                    drawManeuverArrow(route.legs.flatMap(leg => leg.steps));
-                    speakInstruction(currentNavigationSteps[0]?.maneuver?.instruction || 'Siga la ruta');
-                } else throw new Error('No routes');
+                    drawManeuverArrow(currentNavigationSteps);
+                    speakInstruction('Siga la ruta');
+                    dlog('✅ Ruta OSRM dibujada: ' + Math.round(route.distance) + 'm', 'success');
+                } else {
+                    throw new Error('OSRM no devolvió rutas');
+                }
             } catch (e) {
-                const geojson = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } };
-                map.addSource('route', { type: 'geojson', data: geojson });
-                map.addLayer({
-                    id: 'route-line-bg',
-                    type: 'line',
-                    source: 'route',
-                    layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: { 'line-color': '#1a1a1a', 'line-width': 8, 'line-opacity': 0.4 }
-                });
-                map.addSource('route-remaining', {
-                    type: 'geojson',
-                    data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }
-                });
-                map.addLayer({
-                    id: 'route-line',
-                    type: 'line',
-                    source: 'route-remaining',
-                    layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: { 'line-color': '#ff7a00', 'line-width': 8 }
-                });
-                routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
-                window.currentRouteCoords = coordinates;
-                try { window.currentRouteDistance = turf.length(turf.lineString(coordinates), { units: 'meters' }); } catch (err) { window.currentRouteDistance = 1000; }
-                lastRouteProgressIndex = 0;
+                // ✅ NO dibujamos línea falsa. Solo avisamos y reintentamos.
+                dlog('❌ Error calculando ruta OSRM: ' + e.message, 'error');
+                showToast('No se pudo calcular la ruta. Reintentando...', 'exclamation-triangle');
+
+                setTimeout(async () => {
+                    if (!currentRideId || !currentRouteTarget) return;
+                    try {
+                        if (currentRideStatus === 'aceptado') {
+                            const { data: ride } = await supabaseClient
+                                .from('rides').select('origin_lat, origin_lng, destination_lat, destination_lng')
+                                .eq('id', currentRideId).single();
+                            if (ride && ride.origin_lat) {
+                                await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                            }
+                        } else if (currentRideStatus === 'en_curso') {
+                            const { data: ride } = await supabaseClient
+                                .from('rides').select('destination_lat, destination_lng')
+                                .eq('id', currentRideId).single();
+                            if (ride && ride.destination_lat) {
+                                await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                            }
+                        }
+                    } catch (err) {
+                        dlog('❌ Reintento fallido: ' + err.message, 'error');
+                    }
+                }, 2000);
             }
-            dlog('Ruta dibujada', 'success');
         }
 
         function drawManeuverArrow(steps) {
             if (!map || !steps || steps.length === 0) return;
             if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
             const nextStep = steps[0];
-            if (!nextStep || !nextStep.maneuver || !nextStep.maneuver.location) return;
-            const [lng, lat] = nextStep.maneuver.location;
+            if (!nextStep || !nextStep.maneuver) return;
+
+            // OSRM: location = [lng, lat]
+            let lng, lat;
+            if (Array.isArray(nextStep.maneuver.location)) {
+                [lng, lat] = nextStep.maneuver.location;
+            } else if (nextStep.maneuver.location) {
+                lng = nextStep.maneuver.location.lng || nextStep.maneuver.location[0];
+                lat = nextStep.maneuver.location.lat || nextStep.maneuver.location[1];
+            } else {
+                return;
+            }
+            if (!lng || !lat || isNaN(lng) || isNaN(lat)) return;
+
             const modifier = (nextStep.maneuver.modifier || '').toLowerCase();
             const type = (nextStep.maneuver.type || '').toLowerCase();
             let iconClass = 'fa-arrow-up';
@@ -1762,6 +1793,7 @@
             else if (modifier.includes('uturn')) iconClass = 'fa-undo';
             else if (type === 'arrive') iconClass = 'fa-flag-checkered';
             else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
+
             const arrowEl = document.createElement('div');
             arrowEl.className = 'maneuver-arrow';
             arrowEl.innerHTML = `<i class="fas ${iconClass}"></i>`;
@@ -1772,7 +1804,17 @@
             if (!currentNavigationSteps || currentNavigationSteps.length === 0) return;
             const currentStep = currentNavigationSteps[currentNavigationIndex];
             if (!currentStep || !currentStep.maneuver || !currentStep.maneuver.location) return;
-            const [stepLng, stepLat] = currentStep.maneuver.location;
+
+            // OSRM: location = [lng, lat]
+            let stepLng, stepLat;
+            if (Array.isArray(currentStep.maneuver.location)) {
+                [stepLng, stepLat] = currentStep.maneuver.location;
+            } else {
+                stepLng = currentStep.maneuver.location.lng;
+                stepLat = currentStep.maneuver.location.lat;
+            }
+            if (isNaN(stepLng) || isNaN(stepLat)) return;
+
             const distanceToManeuver = getDistanceFromLatLonInMeters(driverLat, driverLng, stepLat, stepLng);
             if (distanceToManeuver < 25 && currentNavigationIndex < currentNavigationSteps.length - 1) {
                 currentNavigationIndex++;
@@ -1785,14 +1827,25 @@
         }
 
         function updateNavigationPanel(step) {
-            const iconMap = { 'turn-left': 'fa-arrow-left', 'turn-right': 'fa-arrow-right', 'straight': 'fa-arrow-up', 'arrive': 'fa-flag-checkered' };
             const panel = document.getElementById('navigation-panel');
-            if (step) {
-                panel.classList.add('active');
-                document.getElementById('nav-icon').className = `fas ${iconMap[step.maneuver.modifier] || iconMap[step.maneuver.type] || 'fa-arrow-up'}`;
-                document.getElementById('nav-distance').textContent = step.distance < 1000 ? `${Math.round(step.distance)} m` : `${(step.distance/1000).toFixed(1)} km`;
-                document.getElementById('nav-text').textContent = translateInstruction(step.maneuver.instruction);
-            } else panel.classList.remove('active');
+            if (!step || !step.maneuver) {
+                panel.classList.remove('active');
+                return;
+            }
+            const modifier = (step.maneuver.modifier || '').toLowerCase();
+            const type = (step.maneuver.type || '').toLowerCase();
+            let iconClass = 'fa-arrow-up';
+            if (modifier.includes('right')) iconClass = 'fa-arrow-right';
+            else if (modifier.includes('left')) iconClass = 'fa-arrow-left';
+            else if (modifier.includes('uturn')) iconClass = 'fa-undo';
+            else if (type === 'arrive') iconClass = 'fa-flag-checkered';
+            else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
+
+            panel.classList.add('active');
+            document.getElementById('nav-icon').className = `fas ${iconClass}`;
+            const dist = step.distance || 0;
+            document.getElementById('nav-distance').textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(1)} km`;
+            document.getElementById('nav-text').textContent = translateInstruction(step.maneuver.instruction || 'Sigue la ruta');
         }
 
         function clearRoute() {
@@ -1924,7 +1977,6 @@
                     }
                     currentPosition = [gpsLat, gpsLng];
 
-                    // Bearing
                     let bearing = smoothedBearing || 0;
                     if (compassAvailable && compassHeading !== null) {
                         if (smoothedBearing === null) smoothedBearing = compassHeading;
@@ -1984,7 +2036,6 @@
                         checkAutoReroute(gpsLat, gpsLng);
                     }
 
-                    // Zoom y pitch agresivos
                     if (map && mapInitialized) {
                         updateDriverMarker(renderLat, renderLng, bearing);
 
@@ -2042,25 +2093,47 @@
             catch (e) {}
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  BUSCADOR — AHORA USA NOMINATIM (gratis, sin token)
+        // ═══════════════════════════════════════════════════════════════
         document.getElementById('searchInput').addEventListener('input', debounce(async (e) => {
             const query = e.target.value.trim();
             if (query.length < 3) { document.getElementById('suggestions').style.display = 'none'; return; }
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxgl.accessToken}&autocomplete=true&language=es&limit=5`;
-            const response = await fetch(url);
-            const data = await response.json();
-            const container = document.getElementById('suggestions');
-            container.innerHTML = '';
-            if (data.features && data.features.length > 0) {
-                data.features.forEach(f => {
-                    const item = document.createElement('div');
-                    item.className = 'suggestion-item';
-                    item.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${f.place_name}</span>`;
-                    item.addEventListener('click', () => { map.flyTo({ center: f.center, zoom: 16 }); document.getElementById('searchInput').value = f.place_name; container.style.display = 'none'; });
-                    container.appendChild(item);
+
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&accept-language=es&countrycodes=bo`;
+            try {
+                const response = await fetch(url, {
+                    headers: { 'User-Agent': 'MotoMovilConductor/1.0' }
                 });
-                container.style.display = 'block';
-            } else container.style.display = 'none';
-        }, 300));
+                const data = await response.json();
+                const container = document.getElementById('suggestions');
+                container.innerHTML = '';
+
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(f => {
+                        const lat = parseFloat(f.lat);
+                        const lng = parseFloat(f.lon);
+                        if (isNaN(lat) || isNaN(lng)) return;
+
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        const name = (f.display_name || '').split(',').slice(0, 2).join(', ');
+                        item.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${name}</span>`;
+                        item.addEventListener('click', () => {
+                            map.flyTo({ center: [lng, lat], zoom: 16 });
+                            document.getElementById('searchInput').value = name;
+                            container.style.display = 'none';
+                        });
+                        container.appendChild(item);
+                    });
+                    container.style.display = 'block';
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error buscando:', err);
+            }
+        }, 500));
         function debounce(fn, delay) { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), delay); }; }
 
         async function loadHistorial() {
@@ -2212,7 +2285,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. Toca el engranaje para ver logs.', 'info');
+        dlog('App iniciada. Arquitectura híbrida: Mapbox (mapa) + OSRM (rutas) + Nominatim (búsqueda)', 'success');
     </script>
 </body>
 </html>

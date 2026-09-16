@@ -81,18 +81,6 @@
         .map-status-pill{background:rgba(26,28,34,0.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:var(--border-radius-full);padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white);box-shadow:var(--shadow-md)}
         .map-status-pill .pulse-dot{width:8px;height:8px;border-radius:var(--border-radius-full);background:var(--green-online);box-shadow:0 0 8px var(--green-glow);animation:pulseDot 1.5s infinite}
         @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.5}}
-        .search-container{position:absolute;top:105px;left:18px;right:18px;z-index:100;max-width:500px;margin:0 auto;transition:all 0.3s var(--ease-smooth)}
-        .search-container.hidden{opacity:0;pointer-events:none;transform:translateY(-20px)}
-        .search-box{background:rgba(26,28,34,0.92);backdrop-filter:blur(20px);border-radius:var(--border-radius-full);padding:12px 20px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,0.08)}
-        .search-box i{color:var(--gray-text);font-size:16px}
-        .search-box input{flex:1;background:transparent;border:none;outline:none;color:var(--white);font-size:14px;font-weight:500}
-        .search-box input::placeholder{color:var(--gray-text)}
-        .suggestions{background:rgba(26,28,34,0.95);backdrop-filter:blur(20px);border-radius:var(--border-radius-lg);margin-top:10px;max-height:300px;overflow-y:auto;display:none;border:1px solid rgba(255,255,255,0.08);box-shadow:var(--shadow-lg)}
-        .suggestion-item{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.2s}
-        .suggestion-item:hover{background:rgba(255,255,255,0.03)}
-        .suggestion-item:last-child{border-bottom:none}
-        .suggestion-item i{color:var(--primary-orange);font-size:14px}
-        .suggestion-item span{font-size:13px;color:var(--white)}
         .navigation-panel{position:absolute;top:105px;left:50%;transform:translateX(-50%);width:calc(100% - 36px);max-width:420px;z-index:99;background:linear-gradient(135deg,var(--blue),#2563eb);border-radius:var(--border-radius-lg);padding:18px;display:none;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(59,130,246,0.4);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(10px)}
         .navigation-panel.active{display:flex}
         .nav-instruction{display:flex;align-items:center;justify-content:center;width:68px;height:68px;background:rgba(255,255,255,0.15);border-radius:var(--border-radius-md);flex-shrink:0;border:1px solid rgba(255,255,255,0.2)}
@@ -118,6 +106,7 @@
         .maneuver-arrow::before{content:'';position:absolute;inset:-12px;border-radius:var(--border-radius-full);background:rgba(59,130,246,0.3);animation:pulseMarker 1.5s infinite}
         @keyframes maneuverPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
         .bottom-nav{background:rgba(20,22,28,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px)) 8px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 30px rgba(0,0,0,0.5);position:relative;z-index:1000;gap:4px}
+        .bottom-nav.nav-hidden{display:none !important;}
         .nav-item{color:var(--gray-text);display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:600;gap:4px;transition:all 0.3s var(--ease-smooth);cursor:pointer;flex:1;padding:8px 4px;border-radius:var(--border-radius-md);position:relative;letter-spacing:0.3px}
         .nav-icon{font-size:22px;transition:all 0.3s var(--ease-bounce);position:relative}
         .nav-item.active{color:var(--primary-orange)}
@@ -460,10 +449,6 @@
                 <div class="map-back-btn" onclick="switchTab('inicio', document.querySelector('.nav-item:nth-child(1)'))"><i class="fas fa-arrow-left"></i></div>
                 <div class="map-status-pill"><span class="pulse-dot"></span><span id="mapStatusText">En línea</span></div>
             </div>
-            <div class="search-container" id="searchContainer">
-                <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Buscar dirección..." autocomplete="off"></div>
-                <div class="suggestions" id="suggestions"></div>
-            </div>
             <div id="navigation-panel" class="navigation-panel">
                 <div class="nav-instruction"><i class="fas fa-arrow-up" id="nav-icon"></i></div>
                 <div class="nav-details"><div class="nav-distance" id="nav-distance">0 m</div><div class="nav-text" id="nav-text">Sigue la ruta</div></div>
@@ -581,9 +566,9 @@
         // ═══════════════════════════════════════════════════════════════
         //  CONFIGURACIÓN
         // ═══════════════════════════════════════════════════════════════
-        const NAV_ARROW_Y_FRACTION = 0.82;
-        const COMPASS_SMOOTHING = 0.25;
-        const SNAP_MAX_DISTANCE = 30;
+        const NAV_ARROW_Y_FRACTION = 0.75;   // Marcador a 25% desde abajo
+        const COMPASS_SMOOTHING = 0.12;      // Suavizado (menor = más estable)
+        const SNAP_MAX_DISTANCE = 80;        // Snap fuerte (edificios → calle)
 
         const OFF_ROUTE_THRESHOLD_M = 40;
         const OFF_ROUTE_DURATION_MS = 5000;
@@ -681,6 +666,19 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        //  OCULTAR/MOSTRAR MENÚ INFERIOR EN NAVEGACIÓN
+        // ═══════════════════════════════════════════════════════════════
+        function setNavigationMode(enabled) {
+            const bottomNav = document.querySelector('.bottom-nav');
+            if (!bottomNav) return;
+            if (enabled) {
+                bottomNav.classList.add('nav-hidden');
+            } else {
+                bottomNav.classList.remove('nav-hidden');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         //  BRÚJULA
         // ═══════════════════════════════════════════════════════════════
         let compassHeading = null;
@@ -700,19 +698,26 @@
                 window.addEventListener('deviceorientationabsolute', handleOrientation, true);
                 window.addEventListener('deviceorientation', handleOrientation, true);
                 compassListenerAttached = true;
+                dlog('🧭 Listener de brújula activado', 'info');
             }
             return true;
         }
 
         function handleOrientation(event) {
             let heading = null;
+
+            const beta = event.beta;
+            const isVertical = beta !== null && Math.abs(beta) > 45 && Math.abs(beta) < 135;
+
             if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null && !isNaN(event.webkitCompassHeading)) {
                 heading = event.webkitCompassHeading;
             } else if (event.alpha !== null && event.alpha !== undefined && !isNaN(event.alpha)) {
                 heading = (360 - event.alpha) % 360;
             }
+
             if (heading === null) return;
             compassRaw = heading;
+
             if (compassHeading === null) {
                 compassHeading = heading;
             } else {
@@ -725,7 +730,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  SNAP A RUTA
+        //  SNAP A RUTA — SIEMPRE snapea (nunca devuelve null)
         // ═══════════════════════════════════════════════════════════════
         function projectPointOnSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
             const dx = bLng - aLng, dy = bLat - aLat, len2 = dx*dx + dy*dy;
@@ -734,20 +739,37 @@
             t = Math.max(0, Math.min(1, t));
             return [aLat + t * dy, aLng + t * dx];
         }
+
         function snapToRoute(lat, lng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return null;
-            const windowSize = 60;
-            const startIdx = Math.max(0, lastRouteProgressIndex - 5);
+
+            const windowSize = 100;
+            const startIdx = Math.max(0, lastRouteProgressIndex - 20);
             const endIdx = Math.min(coords.length - 2, lastRouteProgressIndex + windowSize);
-            let minDist = Infinity, snapped = null;
+
+            let minDist = Infinity, snapped = null, snappedIdx = lastRouteProgressIndex;
+
             for (let i = startIdx; i <= endIdx; i++) {
                 const a = coords[i], b = coords[i + 1];
                 const proj = projectPointOnSegment(lat, lng, a[1], a[0], b[1], b[0]);
                 const d = getDistanceFromLatLonInMeters(lat, lng, proj[0], proj[1]);
-                if (d < minDist) { minDist = d; snapped = proj; }
+                if (d < minDist) { minDist = d; snapped = proj; snappedIdx = i; }
             }
-            if (minDist > SNAP_MAX_DISTANCE) return null;
+
+            if (minDist > SNAP_MAX_DISTANCE) {
+                minDist = Infinity;
+                for (let i = 0; i < coords.length - 1; i++) {
+                    const a = coords[i], b = coords[i + 1];
+                    const proj = projectPointOnSegment(lat, lng, a[1], a[0], b[1], b[0]);
+                    const d = getDistanceFromLatLonInMeters(lat, lng, proj[0], proj[1]);
+                    if (d < minDist) { minDist = d; snapped = proj; snappedIdx = i; }
+                }
+            }
+
+            if (snappedIdx > lastRouteProgressIndex) {
+                lastRouteProgressIndex = snappedIdx;
+            }
             return snapped;
         }
 
@@ -762,7 +784,7 @@
                 const d = getDistanceFromLatLonInMeters(driverLat, driverLng, coords[i][0], coords[i][1]);
                 if (d < minDist) { minDist = d; closestIdx = i; }
             }
-            if (minDist > 50) {
+            if (minDist > 80) {
                 minDist = Infinity;
                 for (let i = 0; i < coords.length; i++) {
                     const d = getDistanceFromLatLonInMeters(driverLat, driverLng, coords[i][0], coords[i][1]);
@@ -781,7 +803,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  TRADUCTOR DE INSTRUCCIONES (con soporte OSRM + Mapbox)
+        //  TRADUCTOR DE INSTRUCCIONES (OSRM + Mapbox)
         // ═══════════════════════════════════════════════════════════════
         function translateInstruction(text) {
             if (!text) return text;
@@ -825,7 +847,6 @@
                 [/\bYour destination is\b/gi, 'Tu destino está'],
                 [/\bmeters?\b/gi, 'metros'],
                 [/\bkilometers?\b/gi, 'kilómetros'],
-                // ✅ Variantes específicas de OSRM
                 [/\bContinue onto\b/gi, 'Continúa por'],
                 [/\bContinue on\b/gi, 'Continúa por'],
                 [/\bonto\b/gi, 'por'],
@@ -870,7 +891,6 @@
         const supabaseUrl = 'https://uwdojchfwmaczgdthtfr.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZG9qY2hmd21hY3pnZHRodGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNDQ4NDEsImV4cCI6MjEwMjcyMDg0MX0.jafGOwlItnzSoZ6yYlpaae16S2nlSDpPIS2316ZPJak';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        // ✅ Mapbox solo para los tiles del mapa. Rutas y búsqueda usan OSRM/Nominatim (gratis)
         mapboxgl.accessToken = 'pk.eyJ1IjoiYXJuZWx2emwiLCJhIjoiY21zd2p2bmc3MW0xODJ4b284d3Zld3g4ZiJ9.zYnczMSu1o0ZaWKdRIo-Ww';
 
         let currentDriverId = null, currentDriverData = null, map = null, currentPosition = null, driverMarker = null;
@@ -909,7 +929,8 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  ANIMACIÓN DEL MARCADOR (con offset al 82% de la pantalla)
+        //  ANIMACIÓN DEL MARCADOR — el mapa sigue al marcador
+        //  con offset para posicionarlo al 75% del screenH
         // ═══════════════════════════════════════════════════════════════
         function animateMarker() {
             if (!driverMarker || !markerCurrentPos || !markerTargetPos) {
@@ -931,7 +952,6 @@
                         const screenH = map.getContainer().offsetHeight || window.innerHeight;
                         const zoom = map.getZoom();
 
-                        // Offset en metros para posicionar la flecha al 82% del screenH
                         const desiredY = screenH * NAV_ARROW_Y_FRACTION;
                         const centerY = screenH * 0.5;
                         const pixelsBelowCenter = desiredY - centerY;
@@ -1090,7 +1110,7 @@
                 currentRideId = null; currentRideStatus = null; currentRouteTarget = null;
                 updateActionButtons();
                 document.getElementById('navigation-panel').classList.remove('active');
-                document.getElementById('searchContainer').classList.remove('hidden');
+                setNavigationMode(false);
                 if (map && currentPosition) map.easeTo({ center: [currentPosition[1], currentPosition[0]], zoom: 15, pitch: 0, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 1000 });
                 showToast('⚠️ El pasajero canceló el viaje', 'exclamation-triangle');
             }
@@ -1278,6 +1298,7 @@
             if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
             if (map) { map.remove(); map = null; mapInitialized = false; }
             markerCurrentPos = null; markerTargetPos = null;
+            setNavigationMode(false);
         }
 
         function togglePassword() {
@@ -1331,7 +1352,20 @@
                     void container.offsetHeight;
                 }
                 if (container.offsetWidth === 0 || container.offsetHeight === 0) return false;
-                map = new mapboxgl.Map({ container: container, style: 'mapbox://styles/mapbox/streets-v12', center: center, zoom: 15, attributionControl: false });
+
+                const initialCenter = (currentPosition && !isNaN(currentPosition[0]) && !isNaN(currentPosition[1]))
+                    ? [currentPosition[1], currentPosition[0]]
+                    : center;
+
+                map = new mapboxgl.Map({
+                    container: container,
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: initialCenter,
+                    zoom: 16,
+                    pitch: 0,
+                    bearing: 0,
+                    attributionControl: false
+                });
                 mapInitialized = true;
                 await new Promise((resolve) => {
                     let done = false;
@@ -1479,11 +1513,12 @@
             lastRerouteTime = 0;
             isRerouting = false;
 
+            setNavigationMode(false);
+
             document.getElementById('rideModal').classList.remove('active');
             document.getElementById('navigation-panel').classList.remove('active');
             currentRideId = null; currentRideStatus = null; pendingRide = null;
             clearRoute(); updateActionButtons();
-            document.getElementById('searchContainer').classList.remove('hidden');
             if (map && currentPosition) {
                 map.easeTo({
                     center: [currentPosition[1], currentPosition[0]],
@@ -1497,8 +1532,6 @@
         }
 
         function updateRideUI(ride) {
-            if (ride && ['aceptado','llegado_origen','en_curso'].includes(ride.status)) document.getElementById('searchContainer').classList.add('hidden');
-            else document.getElementById('searchContainer').classList.remove('hidden');
             if (ride.status === 'aceptado') {
                 if (!currentRideId && !pendingRide) { showRideRequest(ride); return; }
                 hideRideModal();
@@ -1582,12 +1615,22 @@
                 if (!map) await initMap([currentPosition[1], currentPosition[0]]);
                 await ensureMapReady();
                 await new Promise(r => setTimeout(r, 300));
+
+                // Centrar en el conductor antes de dibujar ruta
+                if (map && mapInitialized && currentPosition) {
+                    map.jumpTo({
+                        center: [currentPosition[1], currentPosition[0]],
+                        zoom: 17,
+                        pitch: 45,
+                        bearing: smoothedBearing || 0
+                    });
+                }
+
                 if (map && mapInitialized && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
                     await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
                     currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                 }
                 updateActionButtons();
-                document.getElementById('searchContainer').classList.add('hidden');
             } finally { isAcceptingRide = false; }
         }
 
@@ -1658,7 +1701,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  drawRoute — AHORA USA OSRM (gratis, sin token)
+        //  drawRoute — OSRM (rutas gratis sin token)
         // ═══════════════════════════════════════════════════════════════
         async function drawRoute(originCoords, waypointCoords, destinationCoords) {
             if (!map) return;
@@ -1686,7 +1729,6 @@
             else coordinates = [[originCoords[1],originCoords[0]],[waypointCoords[1],waypointCoords[0]],[destinationCoords[1],destinationCoords[0]]];
 
             const coordsString = coordinates.map(c => c.join(',')).join(';');
-            // ✅ OSRM público — gratis, sin token, sin cuenta
             const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
 
             try {
@@ -1738,7 +1780,6 @@
                     throw new Error('OSRM no devolvió rutas');
                 }
             } catch (e) {
-                // ✅ NO dibujamos línea falsa. Solo avisamos y reintentamos.
                 dlog('❌ Error calculando ruta OSRM: ' + e.message, 'error');
                 showToast('No se pudo calcular la ruta. Reintentando...', 'exclamation-triangle');
 
@@ -1773,7 +1814,6 @@
             const nextStep = steps[0];
             if (!nextStep || !nextStep.maneuver) return;
 
-            // OSRM: location = [lng, lat]
             let lng, lat;
             if (Array.isArray(nextStep.maneuver.location)) {
                 [lng, lat] = nextStep.maneuver.location;
@@ -1805,7 +1845,6 @@
             const currentStep = currentNavigationSteps[currentNavigationIndex];
             if (!currentStep || !currentStep.maneuver || !currentStep.maneuver.location) return;
 
-            // OSRM: location = [lng, lat]
             let stepLng, stepLat;
             if (Array.isArray(currentStep.maneuver.location)) {
                 [stepLng, stepLat] = currentStep.maneuver.location;
@@ -1897,9 +1936,19 @@
                     const isViajesActive = document.getElementById('view-viajes')?.classList.contains('active');
                     if (isViajesActive) {
                         if (!map) initMap([currentPosition[1], currentPosition[0]]);
-                        else map.jumpTo({ center: [currentPosition[1], currentPosition[0]], zoom: 15 });
+                        else map.jumpTo({ center: [currentPosition[1], currentPosition[0]], zoom: 16 });
                         await ensureMapReady();
-                        setTimeout(() => { if (map && mapInitialized) updateDriverMarker(currentPosition[0], currentPosition[1], 0); }, 300);
+                        setTimeout(() => {
+                            if (map && mapInitialized) {
+                                updateDriverMarker(currentPosition[0], currentPosition[1], 0);
+                                map.jumpTo({
+                                    center: [currentPosition[1], currentPosition[0]],
+                                    zoom: 16,
+                                    pitch: 0,
+                                    bearing: 0
+                                });
+                            }
+                        }, 500);
                     }
                 } catch (e) {}
                 startTracking();
@@ -2016,10 +2065,11 @@
                         checkAndAdvanceManeuver(renderLat, renderLng);
                     }
 
-                    // Actualizar coordenadas restantes (línea naranja)
+                    // Actualizar coordenadas restantes (línea naranja pegada al marcador)
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
                         calculateRouteProgress(renderLat, renderLng);
-                        const idx = Math.min(lastRouteProgressIndex, window.currentRouteCoords.length - 2);
+                        const tailOffset = 5;
+                        const idx = Math.max(0, Math.min(lastRouteProgressIndex - tailOffset, window.currentRouteCoords.length - 2));
                         const remainingCoords = window.currentRouteCoords.slice(idx);
                         if (remainingCoords.length >= 2) {
                             try {
@@ -2061,8 +2111,10 @@
 
                         if (enNavegacion) {
                             document.getElementById('navigation-panel').classList.add('active');
+                            setNavigationMode(true);
                         } else {
                             document.getElementById('navigation-panel').classList.remove('active');
+                            setNavigationMode(false);
                         }
 
                         updateDebugStatus();
@@ -2092,49 +2144,6 @@
             try { await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: isOnline, latitude: lat, longitude: lng, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' }); }
             catch (e) {}
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        //  BUSCADOR — AHORA USA NOMINATIM (gratis, sin token)
-        // ═══════════════════════════════════════════════════════════════
-        document.getElementById('searchInput').addEventListener('input', debounce(async (e) => {
-            const query = e.target.value.trim();
-            if (query.length < 3) { document.getElementById('suggestions').style.display = 'none'; return; }
-
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&accept-language=es&countrycodes=bo`;
-            try {
-                const response = await fetch(url, {
-                    headers: { 'User-Agent': 'MotoMovilConductor/1.0' }
-                });
-                const data = await response.json();
-                const container = document.getElementById('suggestions');
-                container.innerHTML = '';
-
-                if (Array.isArray(data) && data.length > 0) {
-                    data.forEach(f => {
-                        const lat = parseFloat(f.lat);
-                        const lng = parseFloat(f.lon);
-                        if (isNaN(lat) || isNaN(lng)) return;
-
-                        const item = document.createElement('div');
-                        item.className = 'suggestion-item';
-                        const name = (f.display_name || '').split(',').slice(0, 2).join(', ');
-                        item.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${name}</span>`;
-                        item.addEventListener('click', () => {
-                            map.flyTo({ center: [lng, lat], zoom: 16 });
-                            document.getElementById('searchInput').value = name;
-                            container.style.display = 'none';
-                        });
-                        container.appendChild(item);
-                    });
-                    container.style.display = 'block';
-                } else {
-                    container.style.display = 'none';
-                }
-            } catch (err) {
-                console.error('Error buscando:', err);
-            }
-        }, 500));
-        function debounce(fn, delay) { let t; return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), delay); }; }
 
         async function loadHistorial() {
             if (!currentDriverId) return;
@@ -2285,7 +2294,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. Arquitectura híbrida: Mapbox (mapa) + OSRM (rutas) + Nominatim (búsqueda)', 'success');
+        dlog('App iniciada. Híbrido: Mapbox (mapa) + OSRM (rutas)', 'success');
     </script>
 </body>
 </html>

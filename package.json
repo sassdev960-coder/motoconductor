@@ -1,0 +1,21 @@
+﻿{
+  "name": "moto-movil-conductor",
+  "version": "1.0.0",
+  "description": "Moto Movil - App del Conductor",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/camera": "^6.1.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/geolocation": "^6.0.1",
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/network": "^6.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "typescript": "^5.6.3"
+  }
+}

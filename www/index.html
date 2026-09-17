@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+;<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -1219,6 +1219,886 @@
 
             animationFrameId = requestAnimationFrame(animateMarker);
         }
+
+        async function login() {
+            const rawPhone = document.getElementById('loginPhone').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!rawPhone || !password) return alert('Ingresa tu teléfono y contraseña');
+            const cleanedPhone = rawPhone.replace(/[\s\-()]/g, '').replace(/^\+?591/, '');
+            showLoading('Iniciando sesión...');
+            try {
+                let { data, error } = await supabaseClient.auth.signInWithPassword({ email: `${rawPhone}@montero.app`, password });
+                if (error && cleanedPhone !== rawPhone) {
+                    const retry = await supabaseClient.auth.signInWithPassword({ email: `${cleanedPhone}@montero.app`, password });
+                    data = retry.data; error = retry.error;
+                }
+                if (error) throw error;
+                currentDriverId = data.user.id;
+                await loadDriverData();
+                await forceOffline();
+                setupRideSubscription();
+                setupChatSubscription();
+                routeUserBasedOnProfile();
+            } catch (error) {
+                alert('Error: ' + error.message);
+                await logout();
+            } finally { hideLoading(); }
+        }
+
+        window.addEventListener('load', async () => {
+            showLoading('Iniciando...');
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    currentDriverId = session.user.id;
+                    await loadDriverData();
+                    await forceOffline();
+                    setupRideSubscription();
+                    setupChatSubscription();
+                    routeUserBasedOnProfile();
+                } else {
+                    document.getElementById('view-login').classList.add('active');
+                }
+            } catch (error) {
+                document.getElementById('view-login').classList.add('active');
+            } finally { hideLoading(); }
+        });
+
+        function routeUserBasedOnProfile() {
+            if (currentDriverData.profile_completed) {
+                document.getElementById('view-login').classList.remove('active');
+                document.getElementById('view-onboarding').classList.remove('active');
+                document.getElementById('mainApp').style.display = 'flex';
+                updateGreeting();
+                loadWalletData();
+                loadActiveRide();
+                if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
+            } else {
+                document.getElementById('obFullName').value = currentDriverData.full_name || '';
+                document.getElementById('view-login').classList.remove('active');
+                document.getElementById('mainApp').style.display = 'none';
+                document.getElementById('view-onboarding').classList.add('active');
+            }
+        }
+
+        async function forceOffline() {
+            try { await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: false, latitude: null, longitude: null, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' }); } catch (e) {}
+            isDriverOnline = false;
+            document.getElementById('toggleSwitch').checked = false;
+            updateStatusCard(false);
+            if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+            if (driverMarker) { driverMarker.remove(); driverMarker = null; }
+            markerCurrentPos = null; markerTargetPos = null;
+            updateProfileStatus(false);
+            updateDebugStatus();
+        }
+
+        function updateStatusCard(online) {
+            const sc = document.getElementById('statusCard'), st = document.getElementById('statusTitle'), ss = document.getElementById('statusSubtitle');
+            const og = document.getElementById('onlineGlow'), hp = document.getElementById('headerProfilePic'), hi = document.getElementById('headerStatusIndicator');
+            if (online) {
+                sc.classList.remove('offline'); sc.classList.add('online');
+                st.textContent = 'En línea'; ss.textContent = 'Buscando viajes cercanos...';
+                og.classList.add('active');
+                hp.classList.remove('offline'); hp.classList.add('online');
+                hi.classList.remove('offline'); hi.classList.add('online');
+            } else {
+                sc.classList.remove('online'); sc.classList.add('offline');
+                st.textContent = 'No disponible'; ss.textContent = 'Activa para recibir viajes';
+                og.classList.remove('active');
+                hp.classList.remove('online'); hp.classList.add('offline');
+                hi.classList.remove('online'); hi.classList.add('offline');
+            }
+        }
+
+        function updateProfileStatus(online) {
+            const hp = document.getElementById('headerProfilePic'), hi = document.getElementById('headerStatusIndicator');
+            if (online) { hp.classList.add('online'); hi.classList.add('online'); }
+            else { hp.classList.remove('online'); hi.classList.remove('online'); hi.classList.add('offline'); }
+        }
+
+        function nextObStep(n) { document.querySelectorAll('.ob-step').forEach(e => e.classList.remove('active')); document.getElementById('obStep'+n).classList.add('active'); }
+        function getOnboardingGPS() {
+            const s = document.getElementById('obGpsStatus');
+            s.textContent = "Buscando satélites..."; s.style.color = "var(--primary-orange)";
+            navigator.geolocation.getCurrentPosition(
+                p => { obLat = p.coords.latitude; obLng = p.coords.longitude; s.innerHTML = '<i class="fas fa-check-circle"></i> Ubicación guardada'; s.style.color = "var(--green-online)"; },
+                () => { s.textContent = "Error al leer GPS"; s.style.color = "var(--red)"; },
+                { enableHighAccuracy: true, timeout: 15000 }
+            );
+        }
+        function handleSelfieSelect(input) {
+            if (input.files && input.files[0]) {
+                currentSelfieFile = input.files[0];
+                const r = new FileReader();
+                r.onload = e => { const p = document.getElementById('selfiePreview'); p.src = e.target.result; p.style.display = 'block'; document.getElementById('selfieStatus').innerHTML = '<i class="fas fa-check-circle"></i> ¡Foto lista!'; document.getElementById('selfieStatus').style.color = 'var(--green-online)'; };
+                r.readAsDataURL(currentSelfieFile);
+            }
+        }
+        async function finishOnboarding() {
+            const fn = document.getElementById('obFullName').value.trim(), id = document.getElementById('obIdentity').value.trim();
+            const mm = document.getElementById('obMotoModel').value.trim(), mp = document.getElementById('obMotoPlate').value.trim();
+            const ad = document.getElementById('obAddress').value.trim(), bf = document.getElementById('obBillFile').files[0];
+            if(!fn||!id||!mm||!mp||!ad) return alert("Completa todos los campos.");
+            if(!obLat||!obLng) return alert("Usa Fijar GPS.");
+            if(!bf) return alert("Adjunta la factura.");
+            if(!currentSelfieFile) return alert("Sube una selfie.");
+            showLoading("Guardando perfil...");
+            try {
+                const be = bf.name.split('.').pop(), bp = `${currentDriverId}/factura_${Date.now()}.${be}`;
+                const { error: bErr } = await supabaseClient.storage.from('driver_documents').upload(bp, bf);
+                if (bErr) throw bErr;
+                const { data: bUrl } = supabaseClient.storage.from('driver_documents').getPublicUrl(bp);
+                const se = currentSelfieFile.name.split('.').pop()||'jpg', sp = `${currentDriverId}/avatar_${Date.now()}.${se}`;
+                const { error: sErr } = await supabaseClient.storage.from('driver_documents').upload(sp, currentSelfieFile);
+                if (sErr) throw sErr;
+                const { data: sUrl } = supabaseClient.storage.from('driver_documents').getPublicUrl(sp);
+                const { error: uErr } = await supabaseClient.from('drivers').update({ full_name: fn, identity_card: id, vehicle_model: mm, vehicle_plate: mp, home_address: ad, home_lat: obLat, home_lng: obLng, utility_bill_url: bUrl.publicUrl, avatar_url: sUrl.publicUrl, profile_completed: true }).eq('id', currentDriverId);
+                if (uErr) throw uErr;
+                await loadDriverData();
+                alert("¡Perfil completado!");
+                routeUserBasedOnProfile();
+            } catch (e) { alert("Error: " + e.message); } finally { hideLoading(); }
+        }
+
+        async function loadDriverData() {
+            const { data: d, error } = await supabaseClient.from('drivers').select('*').eq('id', currentDriverId).maybeSingle();
+            if (error) throw error;
+            currentDriverData = d;
+            const name = d.full_name || 'Conductor', fn = name.split(' ')[0];
+            document.getElementById('userName').textContent = fn;
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('profilePhone').textContent = d.phone || '';
+            document.getElementById('profileVehicle').textContent = d.vehicle_model || 'Motocicleta';
+            document.getElementById('profilePlate').textContent = d.vehicle_plate || '---';
+            document.getElementById('profileIdentity').textContent = d.identity_card || '---';
+            document.getElementById('profileAddress').textContent = d.home_address || '---';
+            document.getElementById('walletHolder').textContent = fn;
+            if (d.avatar_url) {
+                const hi = document.querySelector('#headerProfilePic img'); if (hi) hi.src = d.avatar_url;
+                const pi = document.querySelector('#pageProfilePic img'); if (pi) pi.src = d.avatar_url;
+            }
+        }
+
+        async function logout() {
+            hideLoading();
+            stopRideNotification();
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (currentDriverId) {
+                await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: false, latitude: null, longitude: null, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' });
+            }
+            await supabaseClient.auth.signOut().catch(() => {});
+            currentDriverId = null; currentDriverData = null;
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('view-onboarding').classList.remove('active');
+            document.getElementById('view-login').classList.add('active');
+            if (window.rideSubscription) { supabaseClient.removeChannel(window.rideSubscription); window.rideSubscription = null; }
+            if (chatSubscription) { try { supabaseClient.removeChannel(chatSubscription); chatSubscription = null; } catch (e) {} }
+            if (driverMarker) { driverMarker.remove(); driverMarker = null; }
+            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            if (map) { map.remove(); map = null; mapInitialized = false; }
+            markerCurrentPos = null; markerTargetPos = null;
+            setNavigationMode(false);
+        }
+
+        function togglePassword() {
+            const p = document.getElementById('loginPassword'), t = document.getElementById('togglePasswordIcon');
+            if (p.type === 'password') { p.type = 'text'; t.classList.replace('fa-eye','fa-eye-slash'); }
+            else { p.type = 'password'; t.classList.replace('fa-eye-slash','fa-eye'); }
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const targetView = document.getElementById('view-' + tabId);
+            targetView.classList.add('active');
+            if (el) el.classList.add('active');
+            void targetView.offsetHeight;
+            if (tabId === 'viajes') {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        void targetView.offsetHeight;
+                        if (!map && isDriverOnline) initMap().catch(e => dlog('Error initMap: ' + e.message, 'error'));
+                        else if (map) { try { map.resize(); } catch (e) {} }
+                    });
+                });
+            }
+            if (tabId === 'chat') loadChatMessages();
+            if (tabId === 'billetera') loadWalletData();
+            if (tabId === 'historial') loadHistorial();
+        }
+
+        async function initMap(center = [-63.1821, -17.7833]) {
+            if (map && mapInitialized) { try { map.resize(); } catch (e) {} return true; }
+            if (initMapInProgress) {
+                const startWait = Date.now();
+                while (initMapInProgress && (Date.now() - startWait) < 15000) { await new Promise(r => setTimeout(r, 100)); }
+                return mapInitialized && map;
+            }
+            initMapInProgress = true;
+            try {
+                if (map) { try { map.remove(); } catch (e) {} map = null; }
+                mapInitialized = false;
+                const container = document.getElementById('map');
+                if (!container) return false;
+                while (container.firstChild) { container.removeChild(container.firstChild); }
+                container.style.width = '100%';
+                container.style.height = '100%';
+                void container.offsetHeight;
+                const startTime = Date.now();
+                while (Date.now() - startTime < 3000) {
+                    if (container.offsetWidth > 0 && container.offsetHeight > 0) break;
+                    await new Promise(r => setTimeout(r, 100));
+                    void container.offsetHeight;
+                }
+                if (container.offsetWidth === 0 || container.offsetHeight === 0) return false;
+
+                const initialCenter = (currentPosition && !isNaN(currentPosition[0]) && !isNaN(currentPosition[1]))
+                    ? [currentPosition[1], currentPosition[0]]
+                    : center;
+
+                map = new mapboxgl.Map({
+                    container: container,
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: initialCenter,
+                    zoom: 16,
+                    pitch: 0,
+                    bearing: 0,
+                    attributionControl: false
+                });
+                mapInitialized = true;
+                await new Promise((resolve) => {
+                    let done = false;
+                    const finish = () => { if (!done) { done = true; resolve(); } };
+                    map.once('idle', () => finish());
+                    map.once('load', () => {});
+                    map.once('error', () => {});
+                    setTimeout(() => finish(), 15000);
+                });
+                try { map.addControl(new mapboxgl.NavigationControl(), 'middle-right'); } catch (e) {}
+                // Una interacción manual solo pausa el seguimiento temporalmente.
+                // Al soltar la pantalla, la cámara vuelve automáticamente a seguir al indicador.
+                try { map.on('mousedown', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
+                try { map.on('touchstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
+                try { map.on('dragstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(900); }); } catch (e) {}
+                try { map.on('mouseup', () => scheduleNavigationResume(500)); } catch (e) {}
+                try { map.on('touchend', () => scheduleNavigationResume(500)); } catch (e) {}
+                try { map.on('moveend', () => { if (navigationCameraLocked) scheduleNavigationResume(700); }); } catch (e) {}
+                dlog('✅ Mapa inicializado', 'success');
+                return true;
+            } catch (e) {
+                dlog('❌ Error initMap: ' + e.message, 'error');
+                if (!map) { mapInitialized = false; }
+                return false;
+            } finally {
+                initMapInProgress = false;
+            }
+        }
+
+        async function ensureMapReady() {
+            if (map && mapInitialized) {
+                if (map.loaded()) return true;
+                return new Promise(resolve => { map.once('load', () => resolve(true)); setTimeout(() => resolve(true), 5000); });
+            }
+            const ok = await initMap();
+            if (!ok) return false;
+            if (map.loaded()) return true;
+            return new Promise(resolve => { map.once('load', () => resolve(true)); setTimeout(() => resolve(true), 5000); });
+        }
+
+        function setupRideSubscription() {
+            if (window.rideSubscription) return;
+            window.rideSubscription = supabaseClient
+                .channel('driver-rides')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rides' }, (payload) => {
+                    const ride = payload.new;
+                    if (!ride) return;
+                    const esParaMi = ride.driver_id === currentDriverId;
+                    const esPoolAbierto = ride.status === 'pendiente' && ride.driver_id === null;
+                    const esMiCancelacion = (pendingRide && pendingRide.id === ride.id) || currentRideId === ride.id;
+                    if (esMiCancelacion && (ride.status === 'cancelado' || ride.status === 'no_completado')) { handleRideCancelled(ride, 'realtime'); return; }
+                    if (!esParaMi && !esPoolAbierto) return;
+                    if (!isDriverOnline) return;
+                    if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                        if (ride.status === 'pendiente' || ride.status === 'aceptado') {
+                            if (currentRideId === ride.id) { currentRideStatus = ride.status; updateRideUI(ride); return; }
+                            if (!currentRideId && !pendingRide && !isRejecting) {
+                                showRideRequest(ride);
+                            }
+                        }
+                    }
+                    if (document.getElementById('view-historial')?.classList.contains('active')) loadHistorial();
+                })
+                .subscribe((status) => { dlog('Realtime: ' + status, status === 'SUBSCRIBED' ? 'success' : 'error'); });
+        }
+
+        async function hasRejectedRide(rideId) {
+            if (!currentDriverId || !rideId) return false;
+            try {
+                const { data, error } = await supabaseClient.from('ride_rejections').select('id').eq('ride_id', rideId).eq('driver_id', currentDriverId).maybeSingle();
+                if (error) return false;
+                return !!data;
+            } catch (e) { return false; }
+        }
+
+        async function loadActiveRide() {
+            if (!currentDriverId || !isDriverOnline) return;
+            const { data, error } = await supabaseClient
+                .from('rides').select('*')
+                .or(`driver_id.eq.${currentDriverId},and(status.eq.pendiente,driver_id.is.null)`)
+                .in('status', ['pendiente','aceptado','llegado_origen','en_curso'])
+                .order('created_at', { ascending: false }).limit(5);
+            if (error || !data || data.length === 0) return;
+            let ride = null;
+            for (const r of data) {
+                if (r.status === 'pendiente' && await hasRejectedRide(r.id)) continue;
+                ride = r;
+                break;
+            }
+            if (!ride) return;
+            if (ride.status === 'pendiente' || ride.status === 'aceptado') {
+                if (!currentRideId && !pendingRide) showRideRequest(ride);
+            } else {
+                currentRideId = ride.id; currentRideStatus = ride.status; updateRideUI(ride);
+            }
+        }
+
+        async function showRideRequest(ride) {
+            if (!isDriverOnline) return;
+            if (ride.status === 'pendiente') {
+                const rejected = await hasRejectedRide(ride.id);
+                if (rejected) return;
+            }
+            pendingRide = ride;
+            document.getElementById('rideOrigin').textContent = ride.origin_address || 'No especificado';
+            document.getElementById('rideDestination').textContent = ride.destination_address || 'No especificado';
+            document.getElementById('ridePrice').textContent = `Bs ${parseFloat(ride.price || 0).toFixed(2)}`;
+            const acceptBtn = document.querySelector('.ride-btn.accept'), rejectBtn = document.querySelector('.ride-btn.reject');
+            if (ride.status === 'aceptado') {
+                acceptBtn.innerHTML = '<i class="fas fa-play"></i> Iniciar ruta';
+                rejectBtn.innerHTML = '<i class="fas fa-times"></i> No puedo';
+            } else {
+                acceptBtn.innerHTML = '<i class="fas fa-check"></i> Aceptar';
+                rejectBtn.innerHTML = '<i class="fas fa-times"></i> Rechazar';
+            }
+            document.getElementById('rideModal').classList.add('active');
+            startRideNotification();
+            updateDebugStatus();
+            registrarVistaDeCarrera(ride);
+        }
+
+        async function registrarVistaDeCarrera(ride) {
+            if (!ride || !ride.id || !currentDriverId) return;
+            try {
+                const { data: cur } = await supabaseClient.from('rides').select('viewed_by_drivers').eq('id', ride.id).maybeSingle();
+                const views = Array.isArray(cur?.viewed_by_drivers) ? cur.viewed_by_drivers : [];
+                if (views.some(v => v && v.driver_id === currentDriverId)) return;
+                let distanceKm = null;
+                if (currentPosition && ride.origin_lat && ride.origin_lng) {
+                    const meters = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.origin_lat, ride.origin_lng);
+                    distanceKm = +(meters / 1000).toFixed(2);
+                }
+                const viewEntry = {
+                    driver_id: currentDriverId,
+                    driver_name: currentDriverData?.full_name || 'Conductor',
+                    driver_photo: currentDriverData?.avatar_url || null,
+                    vehicle_model: currentDriverData?.vehicle_model || null,
+                    distance_km: distanceKm, eta_mins: null,
+                    viewed_at: new Date().toISOString()
+                };
+                views.push(viewEntry);
+                await supabaseClient.from('rides').update({ viewed_by_drivers: views }).eq('id', ride.id);
+            } catch (e) {}
+        }
+
+        function hideRideModal() { document.getElementById('rideModal').classList.remove('active'); }
+
+        function resetRideState() {
+            offRouteStartTime = null;
+            lastRerouteTime = 0;
+            isRerouting = false;
+
+            setNavigationMode(false);
+
+            document.getElementById('rideModal').classList.remove('active');
+            document.getElementById('navigation-panel').classList.remove('active');
+            currentRideId = null; currentRideStatus = null; pendingRide = null;
+            clearRoute(); updateActionButtons();
+            if (map && currentPosition) {
+                map.easeTo({
+                    center: [currentPosition[1], currentPosition[0]],
+                    zoom: 15, pitch: 0, bearing: 0,
+                    padding: { top: 0, bottom: 0, left: 0, right: 0 },
+                    duration: 1000
+                });
+            }
+            currentRouteTarget = null;
+            updateDebugStatus();
+        }
+
+        function updateRideUI(ride) {
+            if (ride.status === 'aceptado') {
+                if (!currentRideId && !pendingRide) { showRideRequest(ride); return; }
+                hideRideModal();
+                if (currentPosition && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
+                    if (!routeLayers.includes('route-line')) {
+                        drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                        currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                    }
+                }
+            } else if (ride.status === 'llegado_origen') {
+                clearRoute();
+                if (map && currentPosition) map.easeTo({ center: [currentPosition[1], currentPosition[0]], zoom: 16, pitch: 0, bearing: 0 });
+            } else if (ride.status === 'en_curso') {
+                if (currentPosition && ride.destination_lat && ride.destination_lng) {
+                    if (!routeLayers.includes('route-line')) {
+                        drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                        currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                    }
+                }
+            } else if (['completado','no_completado','cancelado','rechazado'].includes(ride.status)) resetRideState();
+            updateActionButtons();
+            if (document.getElementById('view-historial')?.classList.contains('active')) loadHistorial();
+        }
+
+        function updateActionButtons() {
+            const ids = ['pickupBtn', 'arrivedBtn', 'finishBtn', 'notCompletedBtn', 'redirectBtn'];
+            ids.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            if (currentRideStatus === 'aceptado') { document.getElementById('arrivedBtn').classList.remove('hidden'); document.getElementById('redirectBtn').classList.remove('hidden'); }
+            else if (currentRideStatus === 'llegado_origen') { document.getElementById('pickupBtn').classList.remove('hidden'); }
+            else if (currentRideStatus === 'en_curso') { document.getElementById('finishBtn').classList.remove('hidden'); document.getElementById('notCompletedBtn').classList.remove('hidden'); document.getElementById('redirectBtn').classList.remove('hidden'); }
+        }
+
+        async function acceptRide() {
+            if (!pendingRide || !pendingRide.id) return;
+            if (isAcceptingRide) return;
+            isAcceptingRide = true;
+            stopRideNotification();
+            const rideId = pendingRide.id;
+            try {
+                const { data: rideCheck, error: checkErr } = await supabaseClient.from('rides').select('*').eq('id', rideId).single();
+                if (checkErr) { return alert('Error: ' + checkErr.message); }
+                let ride = rideCheck;
+                if (ride.status === 'cancelado' || ride.status === 'no_completado') {
+                    showToast('El pasajero canceló', 'times-circle');
+                    hideRideModal(); pendingRide = null; return;
+                }
+                if (ride.status === 'pendiente') {
+                    const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('accept_ride', { p_ride_id: rideId, p_driver_id: currentDriverId });
+                    if (rpcError) {
+                        const { data: fallback, error: fbErr } = await supabaseClient
+                            .from('rides').update({ status: 'aceptado', driver_id: currentDriverId, accepted_at: new Date().toISOString() })
+                            .eq('id', rideId).eq('status', 'pendiente').select().maybeSingle();
+                        if (fbErr || !fallback) { showToast('Otro conductor la tomó', 'exclamation-circle'); hideRideModal(); pendingRide = null; return; }
+                        ride = fallback;
+                    } else {
+                        if (!rpcResult || !rpcResult.success) { showToast('Otro conductor la tomó', 'exclamation-circle'); hideRideModal(); pendingRide = null; return; }
+                        ride = rpcResult.ride;
+                    }
+                } else if (ride.status === 'aceptado' && ride.driver_id === currentDriverId) {
+                    // ya asignada
+                } else {
+                    alert('No disponible.'); hideRideModal(); pendingRide = null; return;
+                }
+                currentRideId = rideId;
+                currentRideStatus = 'aceptado';
+                pendingRide = null;
+                hideRideModal();
+                if (!currentPosition) {
+                    try {
+                        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
+                        currentPosition = [pos.coords.latitude, pos.coords.longitude];
+                        if (map && mapInitialized) updateDriverMarker(currentPosition[0], currentPosition[1], 0);
+                    } catch (e) { alert('Activa el GPS.'); return; }
+                }
+                switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
+                setNavigationMode(true);
+
+                for (let i = 0; i < 20; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    const c = document.getElementById('map');
+                    if (c && c.offsetWidth > 0 && c.offsetHeight > 0) break;
+                }
+
+                if (!map) await initMap([currentPosition[1], currentPosition[0]]);
+                await ensureMapReady();
+                try { map.resize(); } catch (e) {}
+                await new Promise(r => setTimeout(r, 150));
+
+                if (map && mapInitialized && currentPosition) {
+                    const bearing = Number.isFinite(smoothedBearing) ? smoothedBearing : 0;
+                    const screenH = map.getContainer().offsetHeight || window.innerHeight;
+                    map.jumpTo({
+                        center: [currentPosition[1], currentPosition[0]],
+                        zoom: 17.5,
+                        pitch: NAV_PITCH,
+                        bearing,
+                        offset: [0, Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5))]
+                    });
+                }
+
+                if (map && mapInitialized && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
+                    await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                    currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                }
+                updateActionButtons();
+                setNavigationMode(true);
+            } finally { isAcceptingRide = false; }
+        }
+
+        async function rejectRide() {
+            if (!pendingRide || !pendingRide.id) return;
+            stopRideNotification();
+            isRejecting = true;
+            const rideId = pendingRide.id;
+            pendingRide = null;
+            hideRideModal();
+            try {
+                await supabaseClient.from('ride_rejections').insert({ ride_id: rideId, driver_id: currentDriverId });
+                const { error } = await supabaseClient.from('rides').update({ status: 'pendiente', driver_id: null }).eq('id', rideId);
+                if (error) showToast('No se pudo rechazar', 'exclamation-circle');
+                else showToast('Viaje rechazado', 'check-circle');
+            } catch (e) { showToast('Error al rechazar', 'exclamation-circle'); } finally { isRejecting = false; }
+        }
+
+        async function markArrived() {
+            if (!currentRideId) return;
+            const { data: ride } = await supabaseClient.from('rides').select('origin_lat, origin_lng').eq('id', currentRideId).single();
+            if (ride && currentPosition) {
+                const dist = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.origin_lat, ride.origin_lng);
+                if (dist > 50) { showToast(`Estás a ${Math.round(dist)} m del origen`, 'exclamation-triangle'); return; }
+            }
+            const { error } = await supabaseClient.from('rides').update({ status: 'llegado_origen' }).eq('id', currentRideId);
+            if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
+            currentRideStatus = 'llegado_origen';
+            updateActionButtons(); clearRoute(); currentRouteTarget = null;
+            if (map && currentPosition) {
+                map.easeTo({
+                    center: [currentPosition[1], currentPosition[0]],
+                    zoom: 17,
+                    pitch: 0,
+                    bearing: 0,
+                    duration: 500,
+                    essential: true
+                });
+            }
+            setNavigationMode(true);
+            speakInstruction('Has llegado al punto de partida');
+        }
+
+        async function startRideWithPassenger() {
+            if (!currentRideId || currentRideStatus !== 'llegado_origen') return;
+            const { error } = await supabaseClient.from('rides').update({ status: 'en_curso', accepted_at: new Date().toISOString() }).eq('id', currentRideId);
+            if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
+            currentRideStatus = 'en_curso'; updateActionButtons();
+            const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng').eq('id', currentRideId).single();
+            if (ride && ride.destination_lat && ride.destination_lng && currentPosition) {
+                await ensureMapReady();
+                await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+            }
+            speakInstruction('Iniciando viaje al destino');
+        }
+
+        async function finishRide(completed) {
+            if (!currentRideId) return;
+            if (completed) {
+                if (!currentPosition) return showToast('Activa el GPS', 'exclamation-triangle');
+                const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng').eq('id', currentRideId).single();
+                if (ride && ride.destination_lat && ride.destination_lng) {
+                    const dist = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.destination_lat, ride.destination_lng);
+                    if (dist > 200) { showToast(`Estás a ${Math.round(dist)} m del destino`, 'exclamation-triangle'); return; }
+                }
+            }
+            const newStatus = completed ? 'completado' : 'no_completado';
+            const { error } = await supabaseClient.from('rides').update({ status: newStatus, completed_at: completed ? new Date().toISOString() : null, cancelled_at: completed ? null : new Date().toISOString() }).eq('id', currentRideId);
+            if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            if (completed) {
+                showToast('¡Viaje completado!', 'check-circle');
+                speakInstruction('Viaje completado');
+                setTimeout(() => { loadWalletData().catch(()=>{}); }, 900);
+            } else showToast('Viaje no completado', 'info');
+            resetRideState();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  drawRoute — OSRM (rutas gratis sin token)
+        // ═══════════════════════════════════════════════════════════════
+        async function drawRoute(originCoords, waypointCoords, destinationCoords) {
+            if (!map) return;
+            await ensureMapReady();
+            try {
+                if (map.getLayer('route-line')) map.removeLayer('route-line');
+                if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
+                if (map.getSource('route')) map.removeSource('route');
+                if (map.getSource('route-remaining')) map.removeSource('route-remaining');
+            } catch (e) {}
+            routeLayers = [];
+            clearRoute();
+
+            if (originCoords[0] !== waypointCoords[0] || originCoords[1] !== waypointCoords[1]) {
+                const pe = document.createElement('div');
+                pe.innerHTML = '<i class="fas fa-user-circle" style="font-size:35px;color:#22c55e;text-shadow:0 0 8px #22c55e;"></i>';
+                pickupMarker = new mapboxgl.Marker(pe).setLngLat([waypointCoords[1], waypointCoords[0]]).addTo(map);
+            }
+            const de = document.createElement('div');
+            de.innerHTML = '<i class="fas fa-flag-checkered" style="font-size:35px;color:#ef4444;text-shadow:0 0 8px #ef4444;"></i>';
+            dropoffMarker = new mapboxgl.Marker(de).setLngLat([destinationCoords[1], destinationCoords[0]]).addTo(map);
+
+            let coordinates = [];
+            if (originCoords[0] === waypointCoords[0] && originCoords[1] === waypointCoords[1]) coordinates = [[originCoords[1],originCoords[0]],[destinationCoords[1],destinationCoords[0]]];
+            else coordinates = [[originCoords[1],originCoords[0]],[waypointCoords[1],waypointCoords[0]],[destinationCoords[1],destinationCoords[0]]];
+
+            const coordsString = coordinates.map(c => c.join(',')).join(';');
+            const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
+
+            try {
+                dlog('🛣️ Calculando ruta con OSRM...', 'info');
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    currentNavigationSteps = route.legs.flatMap(leg => leg.steps || []);
+                    currentNavigationIndex = 0;
+                    updateNavigationPanel(currentNavigationSteps[0]);
+
+                    const fullGeojson = { type: 'Feature', properties: {}, geometry: route.geometry };
+                    map.addSource('route', { type: 'geojson', data: fullGeojson });
+                    map.addLayer({
+                        id: 'route-line-bg',
+                        type: 'line',
+                        source: 'route',
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: { 'line-color': '#1a1a1a', 'line-width': 8, 'line-opacity': 0.4 }
+                    });
+
+                    map.addSource('route-remaining', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            properties: {},
+                            geometry: { type: 'LineString', coordinates: route.geometry.coordinates }
+                        }
+                    });
+                    map.addLayer({
+                        id: 'route-line',
+                        type: 'line',
+                        source: 'route-remaining',
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: { 'line-color': '#ff7a00', 'line-width': 8 }
+                    });
+
+                    routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
+                    window.currentRouteCoords = route.geometry.coordinates;
+                    window.currentRouteDistance = route.distance || 1000;
+                    lastRouteProgressIndex = 0;
+
+                    drawManeuverArrow(currentNavigationSteps);
+                    speakInstruction('Siga la ruta');
+                    dlog('✅ Ruta OSRM dibujada: ' + Math.round(route.distance) + 'm', 'success');
+                } else {
+                    throw new Error('OSRM no devolvió rutas');
+                }
+            } catch (e) {
+                dlog('❌ Error calculando ruta OSRM: ' + e.message, 'error');
+                showToast('No se pudo calcular la ruta. Reintentando...', 'exclamation-triangle');
+
+                setTimeout(async () => {
+                    if (!currentRideId || !currentRouteTarget) return;
+                    try {
+                        if (currentRideStatus === 'aceptado') {
+                            const { data: ride } = await supabaseClient
+                                .from('rides').select('origin_lat, origin_lng, destination_lat, destination_lng')
+                                .eq('id', currentRideId).single();
+                            if (ride && ride.origin_lat) {
+                                await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                            }
+                        } else if (currentRideStatus === 'en_curso') {
+                            const { data: ride } = await supabaseClient
+                                .from('rides').select('destination_lat, destination_lng')
+                                .eq('id', currentRideId).single();
+                            if (ride && ride.destination_lat) {
+                                await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                            }
+                        }
+                    } catch (err) {
+                        dlog('❌ Reintento fallido: ' + err.message, 'error');
+                    }
+                }, 2000);
+            }
+        }
+
+        function drawManeuverArrow(steps) {
+            if (!map || !steps || steps.length === 0) return;
+            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            const nextStep = steps[0];
+            if (!nextStep || !nextStep.maneuver) return;
+
+            let lng, lat;
+            if (Array.isArray(nextStep.maneuver.location)) {
+                [lng, lat] = nextStep.maneuver.location;
+            } else if (nextStep.maneuver.location) {
+                lng = nextStep.maneuver.location.lng || nextStep.maneuver.location[0];
+                lat = nextStep.maneuver.location.lat || nextStep.maneuver.location[1];
+            } else {
+                return;
+            }
+            if (!lng || !lat || isNaN(lng) || isNaN(lat)) return;
+
+            const modifier = (nextStep.maneuver.modifier || '').toLowerCase();
+            const type = (nextStep.maneuver.type || '').toLowerCase();
+            let iconClass = 'fa-arrow-up';
+            if (modifier.includes('right')) iconClass = 'fa-arrow-right';
+            else if (modifier.includes('left')) iconClass = 'fa-arrow-left';
+            else if (modifier.includes('uturn')) iconClass = 'fa-undo';
+            else if (type === 'arrive') iconClass = 'fa-flag-checkered';
+            else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
+
+            const arrowEl = document.createElement('div');
+            arrowEl.className = 'maneuver-arrow';
+            arrowEl.innerHTML = `<i class="fas ${iconClass}"></i>`;
+            maneuverArrowMarker = new mapboxgl.Marker({ element: arrowEl, anchor: 'center' }).setLngLat([lng, lat]).addTo(map);
+        }
+
+        function checkAndAdvanceManeuver(driverLat, driverLng) {
+            if (!currentNavigationSteps || currentNavigationSteps.length === 0) return;
+            const currentStep = currentNavigationSteps[currentNavigationIndex];
+            if (!currentStep || !currentStep.maneuver || !currentStep.maneuver.location) return;
+
+            let stepLng, stepLat;
+            if (Array.isArray(currentStep.maneuver.location)) {
+                [stepLng, stepLat] = currentStep.maneuver.location;
+            } else {
+                stepLng = currentStep.maneuver.location.lng;
+                stepLat = currentStep.maneuver.location.lat;
+            }
+            if (isNaN(stepLng) || isNaN(stepLat)) return;
+
+            const distanceToManeuver = getDistanceFromLatLonInMeters(driverLat, driverLng, stepLat, stepLng);
+            if (distanceToManeuver < 25 && currentNavigationIndex < currentNavigationSteps.length - 1) {
+                currentNavigationIndex++;
+                const nextStep = currentNavigationSteps[currentNavigationIndex];
+                updateNavigationPanel(nextStep);
+                const remainingSteps = currentNavigationSteps.slice(currentNavigationIndex);
+                drawManeuverArrow(remainingSteps);
+                if (nextStep && nextStep.maneuver && nextStep.maneuver.instruction) speakInstruction(nextStep.maneuver.instruction);
+            }
+        }
+
+        function updateNavigationPanel(step) {
+            const panel = document.getElementById('navigation-panel');
+            if (!step || !step.maneuver) {
+                panel.classList.remove('active');
+                return;
+            }
+            const modifier = (step.maneuver.modifier || '').toLowerCase();
+            const type = (step.maneuver.type || '').toLowerCase();
+            let iconClass = 'fa-arrow-up';
+            if (modifier.includes('right')) iconClass = 'fa-arrow-right';
+            else if (modifier.includes('left')) iconClass = 'fa-arrow-left';
+            else if (modifier.includes('uturn')) iconClass = 'fa-undo';
+            else if (type === 'arrive') iconClass = 'fa-flag-checkered';
+            else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
+
+            panel.classList.add('active');
+            document.getElementById('nav-icon').className = `fas ${iconClass}`;
+            const dist = step.distance || 0;
+            document.getElementById('nav-distance').textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(1)} km`;
+            document.getElementById('nav-text').textContent = translateInstruction(step.maneuver.instruction || 'Sigue la ruta');
+        }
+
+        function clearRoute() {
+            if (!map) return;
+            try {
+                if (map.getLayer('route-line')) map.removeLayer('route-line');
+                if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
+                if (map.getSource('route')) map.removeSource('route');
+                if (map.getSource('route-remaining')) map.removeSource('route-remaining');
+            } catch (e) {}
+            routeLayers = [];
+            if (pickupMarker) { pickupMarker.remove(); pickupMarker = null; }
+            if (dropoffMarker) { dropoffMarker.remove(); dropoffMarker = null; }
+            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            currentNavigationSteps = []; currentNavigationIndex = 0;
+            window.currentRouteCoords = null;
+            window.currentRouteDistance = 0;
+            lastRouteProgressIndex = 0;
+            offRouteStartTime = null;
+            lastRerouteTime = 0;
+            isRerouting = false;
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            document.getElementById('navigation-panel').classList.remove('active');
+        }
+
+        async function redirectRoute() {
+            if (!currentRideId || !currentPosition) return showToast('No hay viaje activo', 'exclamation-triangle');
+            try {
+                const { data: ride } = await supabaseClient.from('rides').select('origin_lat, origin_lng, destination_lat, destination_lng').eq('id', currentRideId).single();
+                if (currentRideStatus === 'aceptado' && ride.origin_lat) { await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]); currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng }; }
+                else if (currentRideStatus === 'en_curso' && ride.destination_lat) { await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]); currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng }; }
+            } catch (e) { showToast('Error al redireccionar', 'exclamation-circle'); }
+        }
+
+        const toggleSwitch = document.getElementById('toggleSwitch');
+        toggleSwitch.addEventListener('change', async function(e) {
+            isDriverOnline = e.target.checked;
+            updateStatusCard(isDriverOnline);
+            updateDebugStatus();
+            if (isDriverOnline) {
+                try { await initCompass(); } catch (err) {}
+                try {
+                    if (!notificationAudioCtx) { notificationAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                    if (notificationAudioCtx.state === 'suspended') notificationAudioCtx.resume();
+                } catch (e) {}
+                try {
+                    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
+                    currentPosition = [pos.coords.latitude, pos.coords.longitude];
+                    const isViajesActive = document.getElementById('view-viajes')?.classList.contains('active');
+                    if (isViajesActive) {
+                        if (!map) initMap([currentPosition[1], currentPosition[0]]);
+                        else map.jumpTo({ center: [currentPosition[1], currentPosition[0]], zoom: 16 });
+                        await ensureMapReady();
+                        setTimeout(() => {
+                            if (map && mapInitialized) {
+                                updateDriverMarker(currentPosition[0], currentPosition[1], 0);
+                                map.jumpTo({
+                                    center: [currentPosition[1], currentPosition[0]],
+                                    zoom: 16,
+                                    pitch: 0,
+                                    bearing: 0
+                                });
+                            }
+                        }, 500);
+                    }
+                } catch (e) {}
+                startTracking();
+                try {
+                    await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: true, latitude: currentPosition?.[0] || null, longitude: currentPosition?.[1] || null, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' });
+                } catch (e) {}
+                await loadActiveRide();
+                setTimeout(async () => {
+                    if (!currentRideId && !pendingRide && isDriverOnline) {
+                        const { data } = await supabaseClient
+                            .from('rides').select('*')
+                            .or(`driver_id.eq.${currentDriverId},and(status.eq.pendiente,driver_id.is.null)`)
+                            .in('status', ['pendiente', 'aceptado'])
+                            .order('created_at', { ascending: false }).limit(5);
+                        if (data && data.length > 0) {
+                            for (const r of data) {
+                                if (r.status === 'pendiente' && await hasRejectedRide(r.id)) continue;
+                                if (!pendingRide && !currentRideId) showRideRequest(r);
+                                break;
+                            }
+                        }
+                    }
+                }, 2000);
+            } else { forceOffline(); }
+        });
+
 
         function createDriverMarker(lat, lng, bearing = 0) {
             const el = document.createElement('div');

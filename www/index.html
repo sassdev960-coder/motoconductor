@@ -99,7 +99,7 @@
         .action-btn.redirect{background:linear-gradient(135deg,var(--purple),#7c3aed);color:white}
         .action-btn.hidden{display:none}
         .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{display:none}
-        .driver-arrow{width:48px;height:48px;background:linear-gradient(135deg,#4285F4,#2563eb);border:3px solid white;border-radius:var(--border-radius-full);box-shadow:0 4px 15px rgba(66,133,244,0.6);display:flex;align-items:center;justify-content:center;color:white;font-size:22px;position:relative;transition:transform 0.15s linear;will-change:transform;transform-origin:center center}
+        .driver-arrow{width:48px;height:48px;background:linear-gradient(135deg,#4285F4,#2563eb);border:3px solid white;border-radius:var(--border-radius-full);box-shadow:0 4px 15px rgba(66,133,244,0.6);display:flex;align-items:center;justify-content:center;color:white;font-size:22px;position:relative;transition:transform 0.15s linear}
         .driver-arrow::before{content:'';position:absolute;inset:-8px;border-radius:var(--border-radius-full);background:rgba(66,133,244,0.2);animation:pulseMarker 2s infinite}
         @keyframes pulseMarker{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0}}
         .maneuver-arrow{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:4px solid white;border-radius:var(--border-radius-full);box-shadow:0 8px 24px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;color:white;font-size:26px;position:relative;animation:maneuverPulse 1.5s infinite}
@@ -107,6 +107,13 @@
         @keyframes maneuverPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
         .bottom-nav{background:rgba(20,22,28,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px)) 8px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 30px rgba(0,0,0,0.5);position:relative;z-index:1000;gap:4px}
         .bottom-nav.nav-hidden{display:none !important;}
+        #view-viajes.navigation-active{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;height:100dvh !important;z-index:2000 !important;display:block !important;overflow:hidden !important;padding:0 !important;margin:0 !important;}
+        #view-viajes.navigation-active #map{position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;}
+        #view-viajes.navigation-active .map-topbar{z-index:2100;padding-top:calc(12px + env(safe-area-inset-top,0px));}
+        #view-viajes.navigation-active .navigation-panel{top:calc(68px + env(safe-area-inset-top,0px));left:12px;right:12px;width:auto;max-width:none;transform:none;z-index:2100;}
+        #view-viajes.navigation-active .ride-actions-float{z-index:2100;bottom:calc(18px + env(safe-area-inset-bottom,0px));}
+        #view-viajes.navigation-active .mapboxgl-ctrl-bottom-left,#view-viajes.navigation-active .mapboxgl-ctrl-bottom-right{display:none !important;}
+        .driver-arrow{will-change:transform;transform-origin:center center;}
         .nav-item{color:var(--gray-text);display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:600;gap:4px;transition:all 0.3s var(--ease-smooth);cursor:pointer;flex:1;padding:8px 4px;border-radius:var(--border-radius-md);position:relative;letter-spacing:0.3px}
         .nav-icon{font-size:22px;transition:all 0.3s var(--ease-bounce);position:relative}
         .nav-item.active{color:var(--primary-orange)}
@@ -290,49 +297,6 @@
         .debug-status .dot.green{background:var(--green-online)}
         .debug-status .dot.red{background:var(--red)}
         .debug-status .dot.orange{background:var(--primary-orange)}
-
-        #view-viajes.navigation-active {
-            position: fixed !important;
-            inset: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            height: 100dvh !important;
-            z-index: 2000 !important;
-            display: block !important;
-            overflow: hidden !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        #view-viajes.navigation-active #map {
-            position: absolute !important;
-            inset: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-        #view-viajes.navigation-active .map-topbar {
-            z-index: 2100;
-            padding-top: calc(12px + env(safe-area-inset-top, 0px));
-        }
-        #view-viajes.navigation-active .navigation-panel {
-            top: calc(68px + env(safe-area-inset-top, 0px));
-            left: 12px;
-            right: 12px;
-            width: auto;
-            max-width: none;
-            transform: none;
-            z-index: 2100;
-        }
-        #view-viajes.navigation-active .ride-actions-float {
-            z-index: 2100;
-            bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-        }
-        #view-viajes.navigation-active .mapboxgl-ctrl-bottom-left,
-        #view-viajes.navigation-active .mapboxgl-ctrl-bottom-right {
-            display: none !important;
-        }
-        #view-viajes.navigation-active #map {
-            touch-action: pan-x pan-y;
-        }
     </style>
 </head>
 <body>
@@ -607,29 +571,21 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // CONFIGURACIÓN DE NAVEGACIÓN ESTABLE
+        //  CONFIGURACIÓN
         // ═══════════════════════════════════════════════════════════════
         const NAV_ARROW_Y_FRACTION = 0.72;
         const COMPASS_SMOOTHING = 0.10;
         const SNAP_MAX_DISTANCE = 60;
 
-        // ✅ FIX #1: Configuración del sistema anti-snap para GPS impreciso
-        const GPS_BUILDING_THRESHOLD_M = 35;  // Si estás a más de 35m de la ruta, NO snapear
-        const START_PROXIMITY_THRESHOLD_M = 15; // Si estás a menos de 15m del inicio, devolver posición real
-
         const OFF_ROUTE_THRESHOLD_M = 45;
         const OFF_ROUTE_DURATION_MS = 5000;
         const REROUTE_COOLDOWN_MS = 15000;
-
         const NAV_ZOOM_MIN = 16.8;
         const NAV_ZOOM_MAX = 18.2;
         const NAV_PITCH = 50;
         const CAMERA_UPDATE_MS = 180;
-
         let lastCameraUpdate = 0;
         let navigationCameraLocked = false;
-        let currentNavModeState = false;
-        window.currentSpeedKmh = 0;
 
         let logCount = 0, debugPanelOpen = false;
         function dlog(msg, type = 'info') {
@@ -723,12 +679,9 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // MODO NAVEGACIÓN — MAPA COMPLETO + PADDING
+        //  OCULTAR/MOSTRAR MENÚ INFERIOR EN NAVEGACIÓN
         // ═══════════════════════════════════════════════════════════════
         function setNavigationMode(enabled) {
-            if (currentNavModeState === enabled) return;
-            currentNavModeState = enabled;
-
             const bottomNav = document.querySelector('.bottom-nav');
             const viajesView = document.getElementById('view-viajes');
             const navigationPanel = document.getElementById('navigation-panel');
@@ -742,13 +695,7 @@
 
                 if (map && mapInitialized) {
                     requestAnimationFrame(() => {
-                        try {
-                            map.resize();
-                            const screenH = map.getContainer().offsetHeight || window.innerHeight;
-                            const paddingTop = Math.round(screenH * (2 * NAV_ARROW_Y_FRACTION - 1));
-                            map.setPadding({ top: paddingTop, bottom: 0, left: 0, right: 0 });
-                            dlog(`📐 Navegación activa — padding ${paddingTop}px`, 'info');
-                        } catch (e) {}
+                        try { map.resize(); } catch (e) {}
                         navigationCameraLocked = true;
                     });
                 }
@@ -756,19 +703,12 @@
                 bottomNav?.classList.remove('nav-hidden');
                 viajesView?.classList.remove('navigation-active');
                 navigationPanel?.classList.remove('active');
-
-                if (map && mapInitialized) {
-                    try {
-                        map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
-                    } catch (e) {}
-                }
-
                 navigationCameraLocked = false;
             }
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // BRÚJULA
+        //  BRÚJULA
         // ═══════════════════════════════════════════════════════════════
         let compassHeading = null;
         let compassRaw = null;
@@ -794,6 +734,7 @@
 
         function handleOrientation(event) {
             let heading = null;
+
             const beta = event.beta;
             const isVertical = beta !== null && Math.abs(beta) > 45 && Math.abs(beta) < 135;
 
@@ -818,7 +759,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // SNAP A RUTA — ✅ FIX #1: no snapear si estás lejos del inicio
+        //  SNAP A RUTA — SIEMPRE snapea (nunca devuelve null)
         // ═══════════════════════════════════════════════════════════════
         function projectPointOnSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
             const dx = bLng - aLng, dy = bLat - aLat, len2 = dx*dx + dy*dy;
@@ -831,14 +772,6 @@
         function snapToRoute(lat, lng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return null;
-
-            // ✅ FIX #1A: Si estás muy cerca del INICIO de la ruta (ej. saliendo del edificio),
-            // NO snapees. Devuelve tu posición real para que el marcador quede en la calle
-            // frente al edificio, no en la esquina.
-            const distToStart = getDistanceFromLatLonInMeters(lat, lng, coords[0][1], coords[0][0]);
-            if (distToStart < START_PROXIMITY_THRESHOLD_M) {
-                return [lat, lng];
-            }
 
             const windowSize = 100;
             const startIdx = Math.max(0, lastRouteProgressIndex - 20);
@@ -899,7 +832,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // TRADUCTOR
+        //  TRADUCTOR DE INSTRUCCIONES (OSRM + Mapbox)
         // ═══════════════════════════════════════════════════════════════
         function translateInstruction(text) {
             if (!text) return text;
@@ -1025,7 +958,8 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ANIMACIÓN DEL MARCADOR — cámara bajo control único
+        //  ANIMACIÓN DEL MARCADOR — el mapa sigue al marcador
+        //  con offset para posicionarlo al 75% del screenH
         // ═══════════════════════════════════════════════════════════════
         function animateMarker() {
             if (!driverMarker || !markerCurrentPos || !markerTargetPos) {
@@ -1039,28 +973,27 @@
 
             try {
                 driverMarker.setLngLat([markerCurrentPos[1], markerCurrentPos[0]]);
-
-                const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
+                const enNavegacion = currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso';
 
                 if (enNavegacion && map && mapInitialized) {
                     driverMarker.setRotation(0);
-
                     const now = performance.now();
 
                     if (!userInteracting && navigationCameraLocked && now - lastCameraUpdate >= CAMERA_UPDATE_MS) {
                         lastCameraUpdate = now;
-
                         const bearing = Number.isFinite(smoothedBearing) ? smoothedBearing : 0;
                         const speed = Math.max(0, Number(window.currentSpeedKmh || 0));
-
                         let zoom = NAV_ZOOM_MAX - Math.min(speed * 0.025, 1.2);
                         zoom = Math.max(NAV_ZOOM_MIN, Math.min(NAV_ZOOM_MAX, zoom));
+                        const screenH = map.getContainer().offsetHeight || window.innerHeight;
+                        const offsetY = Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5));
 
                         map.easeTo({
                             center: [markerCurrentPos[1], markerCurrentPos[0]],
                             zoom,
                             bearing,
                             pitch: NAV_PITCH,
+                            offset: [0, offsetY],
                             duration: CAMERA_UPDATE_MS,
                             essential: true
                         });
@@ -1072,13 +1005,13 @@
                     markerCurrentBearing = (markerCurrentBearing + diff * 0.2 + 360) % 360;
                     driverMarker.setRotation(markerCurrentBearing);
                 }
-            } catch (e) {}
+            } catch (e) { console.warn('Error animando marcador:', e); }
 
             animationFrameId = requestAnimationFrame(animateMarker);
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // AUTO-REROUTE
+        //  AUTO-REROUTE
         // ═══════════════════════════════════════════════════════════════
         function getDistanceToRoute(driverLat, driverLng) {
             const coords = window.currentRouteCoords;
@@ -1159,7 +1092,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // NOTIFICACIONES
+        //  NOTIFICACIONES
         // ═══════════════════════════════════════════════════════════════
         function playNotificationSound() {
             try {
@@ -1205,8 +1138,9 @@
                 hideRideModal(); clearRoute();
                 currentRideId = null; currentRideStatus = null; currentRouteTarget = null;
                 updateActionButtons();
+                document.getElementById('navigation-panel').classList.remove('active');
                 setNavigationMode(false);
-                if (map && currentPosition) map.easeTo({ center: [currentPosition[1], currentPosition[0]], zoom: 15, pitch: 0, bearing: 0, duration: 1000 });
+                if (map && currentPosition) map.easeTo({ center: [currentPosition[1], currentPosition[0]], zoom: 15, pitch: 0, bearing: 0, padding: { top: 0, bottom: 0, left: 0, right: 0 }, duration: 1000 });
                 showToast('⚠️ El pasajero canceló el viaje', 'exclamation-triangle');
             }
             updateDebugStatus();
@@ -1283,7 +1217,6 @@
             if (driverMarker) { driverMarker.remove(); driverMarker = null; }
             markerCurrentPos = null; markerTargetPos = null;
             updateProfileStatus(false);
-            setNavigationMode(false);
             updateDebugStatus();
         }
 
@@ -1394,7 +1327,7 @@
             if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
             if (map) { map.remove(); map = null; mapInitialized = false; }
             markerCurrentPos = null; markerTargetPos = null;
-            currentNavModeState = false;
+            setNavigationMode(false);
         }
 
         function togglePassword() {
@@ -1612,12 +1545,14 @@
             setNavigationMode(false);
 
             document.getElementById('rideModal').classList.remove('active');
+            document.getElementById('navigation-panel').classList.remove('active');
             currentRideId = null; currentRideStatus = null; pendingRide = null;
             clearRoute(); updateActionButtons();
             if (map && currentPosition) {
                 map.easeTo({
                     center: [currentPosition[1], currentPosition[0]],
                     zoom: 15, pitch: 0, bearing: 0,
+                    padding: { top: 0, bottom: 0, left: 0, right: 0 },
                     duration: 1000
                 });
             }
@@ -1700,32 +1635,29 @@
                         if (map && mapInitialized) updateDriverMarker(currentPosition[0], currentPosition[1], 0);
                     } catch (e) { alert('Activa el GPS.'); return; }
                 }
-
                 switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
                 setNavigationMode(true);
 
                 for (let i = 0; i < 20; i++) {
                     await new Promise(r => setTimeout(r, 100));
-                    const container = document.getElementById('map');
-                    if (container && container.offsetWidth > 0 && container.offsetHeight > 0) break;
+                    const c = document.getElementById('map');
+                    if (c && c.offsetWidth > 0 && c.offsetHeight > 0) break;
                 }
 
-                if (!map) {
-                    await initMap([currentPosition[1], currentPosition[0]]);
-                }
-
+                if (!map) await initMap([currentPosition[1], currentPosition[0]]);
                 await ensureMapReady();
-
                 try { map.resize(); } catch (e) {}
-
                 await new Promise(r => setTimeout(r, 150));
 
                 if (map && mapInitialized && currentPosition) {
+                    const bearing = Number.isFinite(smoothedBearing) ? smoothedBearing : 0;
+                    const screenH = map.getContainer().offsetHeight || window.innerHeight;
                     map.jumpTo({
                         center: [currentPosition[1], currentPosition[0]],
                         zoom: 17.5,
                         pitch: NAV_PITCH,
-                        bearing: Number.isFinite(smoothedBearing) ? smoothedBearing : 0
+                        bearing,
+                        offset: [0, Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5))]
                     });
                 }
 
@@ -1733,7 +1665,6 @@
                     await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
                     currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                 }
-
                 updateActionButtons();
                 setNavigationMode(true);
             } finally { isAcceptingRide = false; }
@@ -1764,10 +1695,7 @@
             const { error } = await supabaseClient.from('rides').update({ status: 'llegado_origen' }).eq('id', currentRideId);
             if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
             currentRideStatus = 'llegado_origen';
-            updateActionButtons();
-            clearRoute();
-            currentRouteTarget = null;
-
+            updateActionButtons(); clearRoute(); currentRouteTarget = null;
             if (map && currentPosition) {
                 map.easeTo({
                     center: [currentPosition[1], currentPosition[0]],
@@ -1778,9 +1706,7 @@
                     essential: true
                 });
             }
-
             setNavigationMode(true);
-
             speakInstruction('Has llegado al punto de partida');
         }
 
@@ -1821,7 +1747,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // drawRoute — OSRM
+        //  drawRoute — OSRM (rutas gratis sin token)
         // ═══════════════════════════════════════════════════════════════
         async function drawRoute(originCoords, waypointCoords, destinationCoords) {
             if (!map) return;
@@ -2117,7 +2043,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // startTracking — ✅ FIX #2: solo snapear si estás cerca de la ruta
+        //  startTracking
         // ═══════════════════════════════════════════════════════════════
         function startTracking() {
             if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -2133,34 +2059,18 @@
                     const gpsHeading = position.coords.heading;
                     const gpsSpeed = position.coords.speed || 0;
                     const speedKmh = gpsSpeed * 3.6;
-
                     window.currentSpeedKmh = speedKmh;
-
                     const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
 
                     let renderLat = gpsLat;
                     let renderLng = gpsLng;
-
-                    // ✅ FIX #2: Solo snapear si estás REALMENTE cerca de la ruta.
-                    // Si estás dentro de un edificio (GPS con error de 30-50m),
-                    // NO snapear y mostrar tu posición GPS real.
-                    if (enNavegacion && window.currentRouteCoords) {
-                        const distToRoute = getDistanceToRoute(gpsLat, gpsLng);
-
-                        // Si estás a más de GPS_BUILDING_THRESHOLD_M de la ruta, probablemente
-                        // estás dentro de un edificio. No snapear.
-                        if (distToRoute < GPS_BUILDING_THRESHOLD_M) {
-                            const snapped = snapToRoute(gpsLat, gpsLng);
-                            if (snapped) {
-                                renderLat = snapped[0];
-                                renderLng = snapped[1];
-                            }
-                        } else {
-                            // Muy lejos: mostrar posición real del GPS
-                            dlog(`🏠 GPS impreciso (${Math.round(distToRoute)}m de ruta). Marcador sin snap.`, 'warning');
+                    if (enNavegacion) {
+                        const snapped = snapToRoute(gpsLat, gpsLng);
+                        if (snapped) {
+                            renderLat = snapped[0];
+                            renderLng = snapped[1];
                         }
                     }
-
                     currentPosition = [gpsLat, gpsLng];
 
                     let bearing = smoothedBearing || 0;
@@ -2202,7 +2112,7 @@
                         checkAndAdvanceManeuver(renderLat, renderLng);
                     }
 
-                    // Actualizar línea naranja restante
+                    // Actualizar coordenadas restantes (línea naranja pegada al marcador)
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
                         calculateRouteProgress(renderLat, renderLng);
                         const tailOffset = 5;
@@ -2225,13 +2135,7 @@
 
                     if (map && mapInitialized) {
                         updateDriverMarker(renderLat, renderLng, bearing);
-
-                        if (enNavegacion) {
-                            setNavigationMode(true);
-                        } else {
-                            setNavigationMode(false);
-                        }
-
+                        setNavigationMode(enNavegacion);
                         updateDebugStatus();
                     }
 
@@ -2245,9 +2149,7 @@
                         lastMovingTime = now;
                     } else if (isCurrentlyMoving && (now - lastMovingTime) > 5000) {
                         isCurrentlyMoving = false;
-                        if (map && mapInitialized && enNavegacion) {
-                            map.easeTo({ bearing: 0, pitch: 0, duration: 1000 });
-                        }
+                        // No mover la cámara aquí: el controlador de navegación es el único dueño de la cámara.
                     }
                 },
                 (error) => { dlog('Error GPS: ' + error.message, 'warning'); },
@@ -2409,7 +2311,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. Híbrido: Mapbox (mapa) + OSRM (rutas) + anti-snap en edificios ✅', 'success');
+        dlog('App iniciada. Híbrido: Mapbox (mapa) + OSRM (rutas)', 'success');
     </script>
 </body>
 </html>

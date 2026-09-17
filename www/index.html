@@ -577,7 +577,7 @@
         const COMPASS_SMOOTHING = 0.10;
         const SNAP_MAX_DISTANCE = 60;
 
-        const OFF_ROUTE_THRESHOLD_M = 45;
+        const OFF_ROUTE_THRESHOLD_M = 35;
         const OFF_ROUTE_DURATION_MS = 5000;
         const REROUTE_COOLDOWN_MS = 15000;
         const NAV_ZOOM_MIN = 16.8;
@@ -586,6 +586,7 @@
         const CAMERA_UPDATE_MS = 180;
         let lastCameraUpdate = 0;
         let navigationCameraLocked = false;
+        let navigationResumeTimer = null;
 
         let logCount = 0, debugPanelOpen = false;
         function dlog(msg, type = 'info') {
@@ -961,6 +962,41 @@
         //  ANIMACIÓN DEL MARCADOR — el mapa sigue al marcador
         //  con offset para posicionarlo al 75% del screenH
         // ═══════════════════════════════════════════════════════════════
+        function resumeNavigationCamera(immediate = false) {
+            if (navigationResumeTimer) {
+                clearTimeout(navigationResumeTimer);
+                navigationResumeTimer = null;
+            }
+            if (!map || !mapInitialized || !navigationCameraLocked || !markerCurrentPos) return;
+            userInteracting = false;
+            lastInteractionTime = 0;
+            try {
+                const screenH = map.getContainer().offsetHeight || window.innerHeight;
+                const offsetY = Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5));
+                const bearing = Number.isFinite(smoothedBearing) ? smoothedBearing : 0;
+                const speed = Math.max(0, Number(window.currentSpeedKmh || 0));
+                let zoom = NAV_ZOOM_MAX - Math.min(speed * 0.025, 1.2);
+                zoom = Math.max(NAV_ZOOM_MIN, Math.min(NAV_ZOOM_MAX, zoom));
+                map.easeTo({
+                    center: [markerCurrentPos[1], markerCurrentPos[0]],
+                    zoom,
+                    bearing,
+                    pitch: NAV_PITCH,
+                    offset: [0, offsetY],
+                    duration: immediate ? 250 : 450,
+                    essential: true
+                });
+            } catch (e) {}
+        }
+
+        function scheduleNavigationResume(delay = 900) {
+            if (navigationResumeTimer) clearTimeout(navigationResumeTimer);
+            navigationResumeTimer = setTimeout(() => {
+                navigationResumeTimer = null;
+                resumeNavigationCamera(false);
+            }, delay);
+        }
+
         function animateMarker() {
             if (!driverMarker || !markerCurrentPos || !markerTargetPos) {
                 animationFrameId = requestAnimationFrame(animateMarker);
@@ -1405,9 +1441,14 @@
                     setTimeout(() => finish(), 15000);
                 });
                 try { map.addControl(new mapboxgl.NavigationControl(), 'middle-right'); } catch (e) {}
-                try { map.on('mousedown', () => { userInteracting = true; lastInteractionTime = Date.now(); }); } catch (e) {}
-                try { map.on('touchstart', () => { userInteracting = true; lastInteractionTime = Date.now(); }); } catch (e) {}
-                try { map.on('moveend', () => { if (Date.now() - lastInteractionTime > 5000) userInteracting = false; }); } catch (e) {}
+                // Una interacción manual solo pausa el seguimiento temporalmente.
+                // Al soltar la pantalla, la cámara vuelve automáticamente a seguir al indicador.
+                try { map.on('mousedown', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
+                try { map.on('touchstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
+                try { map.on('dragstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(900); }); } catch (e) {}
+                try { map.on('mouseup', () => scheduleNavigationResume(500)); } catch (e) {}
+                try { map.on('touchend', () => scheduleNavigationResume(500)); } catch (e) {}
+                try { map.on('moveend', () => { if (navigationCameraLocked) scheduleNavigationResume(700); }); } catch (e) {}
                 dlog('✅ Mapa inicializado', 'success');
                 return true;
             } catch (e) {
@@ -2109,19 +2150,14 @@
                         checkAndAdvanceManeuver(renderLat, renderLng);
                     }
 
-                    // Actualizar coordenadas restantes (línea naranja pegada al marcador)
+                    // Actualizar la ruta restante SIN dibujar una línea recta elástica
+                    // desde el GPS hasta la calle. El indicador conserva su posición GPS real.
+                    // Si el conductor está fuera de la geometría de la ruta, el auto-reroute
+                    // calcula una nueva ruta vial desde su posición real.
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
-                        calculateRouteProgress(renderLat, renderLng);
+                        calculateRouteProgress(gpsLat, gpsLng);
                         const idx = Math.max(0, Math.min(lastRouteProgressIndex, window.currentRouteCoords.length - 2));
-                        const routeCoordsAhead = window.currentRouteCoords.slice(idx);
-
-                        // La ruta visible siempre comienza exactamente en el indicador GPS.
-                        // Así, aunque el GPS esté dentro de un edificio o fuera de la geometría
-                        // de la calle, no queda un hueco entre el conductor y la ruta.
-                        const remainingCoords = [
-                            [gpsLng, gpsLat],
-                            ...routeCoordsAhead
-                        ];
+                        const remainingCoords = window.currentRouteCoords.slice(idx);
 
                         if (remainingCoords.length >= 2) {
                             try {

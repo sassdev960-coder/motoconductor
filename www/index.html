@@ -759,7 +759,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  SNAP A RUTA — SIEMPRE snapea (nunca devuelve null)
+        //  PROYECCIÓN SOBRE RUTA — se usa para progreso/reroute, NO para mover el marcador
         // ═══════════════════════════════════════════════════════════════
         function projectPointOnSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
             const dx = bLng - aLng, dy = bLat - aLat, len2 = dx*dx + dy*dy;
@@ -2062,15 +2062,12 @@
                     window.currentSpeedKmh = speedKmh;
                     const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
 
-                    let renderLat = gpsLat;
-                    let renderLng = gpsLng;
-                    if (enNavegacion) {
-                        const snapped = snapToRoute(gpsLat, gpsLng);
-                        if (snapped) {
-                            renderLat = snapped[0];
-                            renderLng = snapped[1];
-                        }
-                    }
+                    // IMPORTANTE: el indicador representa la posición GPS REAL.
+                    // No lo forzamos a la calle más cercana: el conductor puede estar
+                    // dentro de un edificio, estacionamiento, patio, pasaje, etc.
+                    // El snapping se usa únicamente para calcular progreso sobre la ruta.
+                    const renderLat = gpsLat;
+                    const renderLng = gpsLng;
                     currentPosition = [gpsLat, gpsLng];
 
                     let bearing = smoothedBearing || 0;
@@ -2115,9 +2112,17 @@
                     // Actualizar coordenadas restantes (línea naranja pegada al marcador)
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
                         calculateRouteProgress(renderLat, renderLng);
-                        const tailOffset = 5;
-                        const idx = Math.max(0, Math.min(lastRouteProgressIndex - tailOffset, window.currentRouteCoords.length - 2));
-                        const remainingCoords = window.currentRouteCoords.slice(idx);
+                        const idx = Math.max(0, Math.min(lastRouteProgressIndex, window.currentRouteCoords.length - 2));
+                        const routeCoordsAhead = window.currentRouteCoords.slice(idx);
+
+                        // La ruta visible siempre comienza exactamente en el indicador GPS.
+                        // Así, aunque el GPS esté dentro de un edificio o fuera de la geometría
+                        // de la calle, no queda un hueco entre el conductor y la ruta.
+                        const remainingCoords = [
+                            [gpsLng, gpsLat],
+                            ...routeCoordsAhead
+                        ];
+
                         if (remainingCoords.length >= 2) {
                             try {
                                 map.getSource('route-remaining').setData({

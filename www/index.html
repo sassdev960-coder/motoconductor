@@ -1,3 +1,4 @@
+<!-- ROUTE STREET-FOLLOWING V6.2 - REROUTE GUARD FIX + MAP AUTO-INIT + ATOMIC ROUTE SWAP -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -577,9 +578,12 @@
         const COMPASS_SMOOTHING = 0.10;
         const SNAP_MAX_DISTANCE = 60;
 
-        const OFF_ROUTE_THRESHOLD_M = 35;
-        const OFF_ROUTE_DURATION_MS = 5000;
-        const REROUTE_COOLDOWN_MS = 15000;
+        // ▼▼▼ FIX: umbrales más tolerantes para evitar reroutes por ruido GPS ▼▼▼
+        const OFF_ROUTE_THRESHOLD_M = 45;
+        const OFF_ROUTE_DURATION_MS = 8000;      // antes 5000
+        const REROUTE_COOLDOWN_MS = 20000;       // antes 15000
+        // ▲▲▲ FIX ▲▲▲
+
         const NAV_ZOOM_MIN = 16.8;
         const NAV_ZOOM_MAX = 18.2;
         const NAV_PITCH = 50;
@@ -760,7 +764,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  PROYECCIÓN SOBRE RUTA — se usa para progreso/reroute, NO para mover el marcador
+        //  PROYECCIÓN SOBRE RUTA
         // ═══════════════════════════════════════════════════════════════
         function projectPointOnSegment(pLat, pLng, aLat, aLng, bLat, bLng) {
             const dx = bLng - aLng, dy = bLat - aLat, len2 = dx*dx + dy*dy;
@@ -770,70 +774,103 @@
             return [aLat + t * dy, aLng + t * dx];
         }
 
-        function snapToRoute(lat, lng) {
-            const coords = window.currentRouteCoords;
-            if (!coords || coords.length < 2) return null;
-
-            const windowSize = 100;
-            const startIdx = Math.max(0, lastRouteProgressIndex - 20);
-            const endIdx = Math.min(coords.length - 2, lastRouteProgressIndex + windowSize);
-
-            let minDist = Infinity, snapped = null, snappedIdx = lastRouteProgressIndex;
-
-            for (let i = startIdx; i <= endIdx; i++) {
-                const a = coords[i], b = coords[i + 1];
-                const proj = projectPointOnSegment(lat, lng, a[1], a[0], b[1], b[0]);
-                const d = getDistanceFromLatLonInMeters(lat, lng, proj[0], proj[1]);
-                if (d < minDist) { minDist = d; snapped = proj; snappedIdx = i; }
-            }
-
-            if (minDist > SNAP_MAX_DISTANCE) {
-                minDist = Infinity;
-                for (let i = 0; i < coords.length - 1; i++) {
-                    const a = coords[i], b = coords[i + 1];
-                    const proj = projectPointOnSegment(lat, lng, a[1], a[0], b[1], b[0]);
-                    const d = getDistanceFromLatLonInMeters(lat, lng, proj[0], proj[1]);
-                    if (d < minDist) { minDist = d; snapped = proj; snappedIdx = i; }
-                }
-            }
-
-            if (snappedIdx > lastRouteProgressIndex) {
-                lastRouteProgressIndex = snappedIdx;
-            }
-            return snapped;
-        }
-
         function calculateRouteProgress(driverLat, driverLng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return 0;
-            const windowSize = 30;
-            const startIdx = Math.max(0, lastRouteProgressIndex - windowSize);
-            const endIdx = Math.min(coords.length - 1, lastRouteProgressIndex + windowSize);
-            let minDist = Infinity, closestIdx = lastRouteProgressIndex;
-            for (let i = startIdx; i <= endIdx; i++) {
-                const d = getDistanceFromLatLonInMeters(driverLat, driverLng, coords[i][0], coords[i][1]);
-                if (d < minDist) { minDist = d; closestIdx = i; }
+
+            const BACK_WINDOW = 120;
+            const FORWARD_WINDOW = 180;
+            const startIdx = Math.max(0, lastRouteProgressIndex - BACK_WINDOW);
+            const endIdx = Math.min(coords.length - 2, lastRouteProgressIndex + FORWARD_WINDOW);
+
+            let best = null;
+
+            const getHeadingForSegment = (a, b) => {
+                const y = Math.sin((b[1] - a[1]) * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180);
+                const x = Math.cos(a[0] * Math.PI / 180) * Math.sin(b[0] * Math.PI / 180) -
+                          Math.sin(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) *
+                          Math.cos((b[1] - a[1]) * Math.PI / 180);
+                return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+            };
+
+            const angleDiff = (a, b) => {
+                let d = Math.abs(a - b) % 360;
+                return d > 180 ? 360 - d : d;
+            };
+
+            let movementHeading = null;
+            if (isCurrentlyMoving && smoothedBearing !== null) {
+                movementHeading = smoothedBearing;
+            } else if (typeof compassHeading === 'number' && compassAvailable) {
+                movementHeading = compassHeading;
             }
-            if (minDist > 80) {
-                minDist = Infinity;
-                for (let i = 0; i < coords.length; i++) {
-                    const d = getDistanceFromLatLonInMeters(driverLat, driverLng, coords[i][0], coords[i][1]);
-                    if (d < minDist) { minDist = d; closestIdx = i; }
+
+            for (let i = startIdx; i <= endIdx; i++) {
+                const a = coords[i], b = coords[i + 1];
+                if (!a || !b) continue;
+
+                const proj = projectPointOnSegment(
+                    driverLat, driverLng, a[1], a[0], b[1], b[0]
+                );
+                const distance = getDistanceFromLatLonInMeters(
+                    driverLat, driverLng, proj[0], proj[1]
+                );
+
+                let score = distance;
+
+                if (movementHeading !== null) {
+                    const roadHeading = getHeadingForSegment(a, b);
+                    const diff = angleDiff(movementHeading, roadHeading);
+                    const directionalDiff = Math.min(diff, Math.abs(180 - diff));
+                    if (directionalDiff > 75) score += 35;
+                    else if (directionalDiff > 55) score += 12;
+                }
+
+                if (i < lastRouteProgressIndex) {
+                    const back = lastRouteProgressIndex - i;
+                    score += Math.min(back * 0.12, 8);
+                }
+
+                if (!best || score < best.score) {
+                    best = { score, distance, segmentIndex: i, projection: proj };
                 }
             }
-            if (closestIdx < lastRouteProgressIndex) closestIdx = lastRouteProgressIndex;
-            lastRouteProgressIndex = closestIdx;
-            let distToIdx = 0, totalDist = 0;
-            for (let i = 1; i < coords.length; i++) {
-                const seg = getDistanceFromLatLonInMeters(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]);
-                if (i <= closestIdx) distToIdx += seg;
-                totalDist += seg;
+
+            if (!best || best.distance > Math.max(SNAP_MAX_DISTANCE, 55)) {
+                for (let i = 0; i < coords.length - 1; i++) {
+                    const a = coords[i], b = coords[i + 1];
+                    const proj = projectPointOnSegment(
+                        driverLat, driverLng, a[1], a[0], b[1], b[0]
+                    );
+                    const distance = getDistanceFromLatLonInMeters(
+                        driverLat, driverLng, proj[0], proj[1]
+                    );
+                    if (!best || distance < best.distance) {
+                        best = { score: distance, distance, segmentIndex: i, projection: proj };
+                    }
+                }
             }
-            return totalDist > 0 ? distToIdx / totalDist : 0;
+
+            if (best) {
+                lastRouteProgressIndex = best.segmentIndex;
+                window.currentRouteSnap = {
+                    lat: best.projection[0],
+                    lng: best.projection[1],
+                    distance: best.distance,
+                    segmentIndex: best.segmentIndex
+                };
+            } else {
+                window.currentRouteSnap = {
+                    lat: null, lng: null, distance: Infinity,
+                    segmentIndex: lastRouteProgressIndex
+                };
+            }
+
+            return lastRouteProgressIndex;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  TRADUCTOR DE INSTRUCCIONES (OSRM + Mapbox)
+        //  TRADUCTOR
         // ═══════════════════════════════════════════════════════════════
         function translateInstruction(text) {
             if (!text) return text;
@@ -940,6 +977,11 @@
         let offRouteStartTime = null;
         let lastRerouteTime = 0;
         let isRerouting = false;
+        let lastManeuverAdvanceTime = 0;
+
+        // ▼▼▼ FIX: contador de fixes para evitar spam de logs de "posponiendo" ▼▼▼
+        let pendingRouteLogAt = 0;
+        // ▲▲▲ FIX ▲▲▲
 
         let animationFrameId = null;
         let markerCurrentPos = null;
@@ -954,13 +996,14 @@
         let isRejecting = false;
         let isAcceptingRide = false;
 
+        window.currentGpsAccuracy = 0;
+
         if ('speechSynthesis' in window) {
             window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  ANIMACIÓN DEL MARCADOR — el mapa sigue al marcador
-        //  con offset para posicionarlo al 75% del screenH
+        //  ANIMACIÓN DEL MARCADOR
         // ═══════════════════════════════════════════════════════════════
         function resumeNavigationCamera(immediate = false) {
             if (navigationResumeTimer) {
@@ -979,9 +1022,7 @@
                 zoom = Math.max(NAV_ZOOM_MIN, Math.min(NAV_ZOOM_MAX, zoom));
                 map.easeTo({
                     center: [markerCurrentPos[1], markerCurrentPos[0]],
-                    zoom,
-                    bearing,
-                    pitch: NAV_PITCH,
+                    zoom, bearing, pitch: NAV_PITCH,
                     offset: [0, offsetY],
                     duration: immediate ? 250 : 450,
                     essential: true
@@ -1026,9 +1067,7 @@
 
                         map.easeTo({
                             center: [markerCurrentPos[1], markerCurrentPos[0]],
-                            zoom,
-                            bearing,
-                            pitch: NAV_PITCH,
+                            zoom, bearing, pitch: NAV_PITCH,
                             offset: [0, offsetY],
                             duration: CAMERA_UPDATE_MS,
                             essential: true
@@ -1052,7 +1091,8 @@
         function getDistanceToRoute(driverLat, driverLng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return Infinity;
-            const windowSize = 60;
+
+            const windowSize = offRouteStartTime !== null ? coords.length : 60;
             const startIdx = Math.max(0, lastRouteProgressIndex - windowSize);
             const endIdx = Math.min(coords.length - 1, lastRouteProgressIndex + windowSize);
             let minDist = Infinity;
@@ -1070,6 +1110,22 @@
             const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
             if (!enNavegacion || !currentRideId || !currentRouteTarget) { offRouteStartTime = null; return; }
             if (isRerouting) return;
+
+            if (!window.currentRouteCoords || window.currentRouteCoords.length < 2) {
+                const now = Date.now();
+                if (now - pendingRouteLogAt > 5000) {
+                    pendingRouteLogAt = now;
+                    dlog('⏸️ Geometría de ruta aún no lista, posponiendo chequeo off-route', 'info');
+                }
+                offRouteStartTime = null;
+                return;
+            }
+
+            if (window.currentGpsAccuracy > 40 && offRouteStartTime === null) {
+                dlog(`⚠️ GPS impreciso (±${Math.round(window.currentGpsAccuracy)}m), posponiendo chequeo`, 'warning');
+                return;
+            }
+
             const now = Date.now();
             if (now - lastRerouteTime < REROUTE_COOLDOWN_MS) return;
 
@@ -1078,6 +1134,7 @@
             if (dist > OFF_ROUTE_THRESHOLD_M) {
                 if (offRouteStartTime === null) {
                     offRouteStartTime = now;
+                    lastRouteProgressIndex = 0;
                     dlog(`📍 Fuera de ruta (${Math.round(dist)}m). Monitoreando...`, 'warning');
                 } else if (now - offRouteStartTime > OFF_ROUTE_DURATION_MS) {
                     dlog(`🔄 Auto-reroute disparado`, 'warning');
@@ -1102,24 +1159,29 @@
                 speakInstruction('Recalculando ruta');
                 const newPosition = [driverLat, driverLng];
 
+                let drawn = false;
                 if (currentRideStatus === 'aceptado') {
                     const { data: ride } = await supabaseClient
                         .from('rides').select('origin_lat, origin_lng, destination_lat, destination_lng')
                         .eq('id', currentRideId).single();
                     if (ride && ride.origin_lat && ride.origin_lng) {
-                        await drawRoute(newPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
-                        currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                        drawn = await drawRoute(newPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                        if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                     }
                 } else if (currentRideStatus === 'en_curso') {
                     const { data: ride } = await supabaseClient
                         .from('rides').select('destination_lat, destination_lng')
                         .eq('id', currentRideId).single();
                     if (ride && ride.destination_lat && ride.destination_lng) {
-                        await drawRoute(newPosition, newPosition, [ride.destination_lat, ride.destination_lng]);
-                        currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                        drawn = await drawRoute(newPosition, newPosition, [ride.destination_lat, ride.destination_lng]);
+                        if (drawn) currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
                     }
                 }
-                dlog('✅ Ruta recalculada', 'success');
+                if (drawn) {
+                    dlog('✅ Ruta recalculada', 'success');
+                } else {
+                    dlog('⚠️ Reroute: no se pudo dibujar la nueva ruta', 'warning');
+                }
             } catch (e) {
                 dlog('❌ Error reroute: ' + e.message, 'error');
             } finally {
@@ -1441,8 +1503,6 @@
                     setTimeout(() => finish(), 15000);
                 });
                 try { map.addControl(new mapboxgl.NavigationControl(), 'middle-right'); } catch (e) {}
-                // Una interacción manual solo pausa el seguimiento temporalmente.
-                // Al soltar la pantalla, la cámara vuelve automáticamente a seguir al indicador.
                 try { map.on('mousedown', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
                 try { map.on('touchstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(1200); }); } catch (e) {}
                 try { map.on('dragstart', () => { userInteracting = true; lastInteractionTime = Date.now(); scheduleNavigationResume(900); }); } catch (e) {}
@@ -1607,8 +1667,10 @@
                 hideRideModal();
                 if (currentPosition && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
                     if (!routeLayers.includes('route-line')) {
-                        drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
-                        currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                        drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng])
+                            .then(drawn => {
+                                if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                            });
                     }
                 }
             } else if (ride.status === 'llegado_origen') {
@@ -1617,8 +1679,10 @@
             } else if (ride.status === 'en_curso') {
                 if (currentPosition && ride.destination_lat && ride.destination_lng) {
                     if (!routeLayers.includes('route-line')) {
-                        drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
-                        currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                        drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng])
+                            .then(drawn => {
+                                if (drawn) currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                            });
                     }
                 }
             } else if (['completado','no_completado','cancelado','rechazado'].includes(ride.status)) resetRideState();
@@ -1669,6 +1733,11 @@
                 currentRideStatus = 'aceptado';
                 pendingRide = null;
                 hideRideModal();
+
+                // ▼ FIX: overlay de carga mientras se prepara el mapa y la ruta ▼
+                showLoading('Preparando navegación...');
+                // ▲ FIX
+
                 if (!currentPosition) {
                     try {
                         const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
@@ -1702,13 +1771,19 @@
                     });
                 }
 
-                if (map && mapInitialized && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
-                    await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
-                    currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                if (ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
+                    // ▼ FIX: feedback durante el cálculo de la ruta ▼
+                    document.getElementById('loadingText').textContent = 'Calculando ruta...';
+                    // ▲ FIX
+                    const drawn = await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                    if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                 }
                 updateActionButtons();
                 setNavigationMode(true);
-            } finally { isAcceptingRide = false; }
+            } finally {
+                isAcceptingRide = false;
+                hideLoading();   // ▼ FIX: cerrar overlay en cualquier salida (return o éxito) ▼
+            }
         }
 
         async function rejectRide() {
@@ -1740,11 +1815,8 @@
             if (map && currentPosition) {
                 map.easeTo({
                     center: [currentPosition[1], currentPosition[0]],
-                    zoom: 17,
-                    pitch: 0,
-                    bearing: 0,
-                    duration: 500,
-                    essential: true
+                    zoom: 17, pitch: 0, bearing: 0,
+                    duration: 500, essential: true
                 });
             }
             setNavigationMode(true);
@@ -1759,8 +1831,8 @@
             const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng').eq('id', currentRideId).single();
             if (ride && ride.destination_lat && ride.destination_lng && currentPosition) {
                 await ensureMapReady();
-                await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
-                currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                const drawn = await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                if (drawn) currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
             }
             speakInstruction('Iniciando viaje al destino');
         }
@@ -1788,11 +1860,34 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  drawRoute — OSRM (rutas gratis sin token)
+        //  drawRoute — OSRM. AHORA: inicializa mapa, retorna boolean, no usa clearRoute.
         // ═══════════════════════════════════════════════════════════════
+        function cleanRoadRouteGeometry(coords) {
+            if (!Array.isArray(coords) || coords.length < 2) return coords || [];
+            const cleaned = [coords[0]];
+
+            for (let i = 1; i < coords.length; i++) {
+                const prev = cleaned[cleaned.length - 1];
+                const cur = coords[i];
+                if (!cur || cur.length < 2) continue;
+
+                const d = getDistanceFromLatLonInMeters(prev[1], prev[0], cur[1], cur[0]);
+                if (d >= 0.35) cleaned.push(cur);
+            }
+
+            return cleaned.length >= 2 ? cleaned : coords;
+        }
+
         async function drawRoute(originCoords, waypointCoords, destinationCoords) {
-            if (!map) return;
-            await ensureMapReady();
+            if (!map || !mapInitialized) {
+                await initMap();
+            }
+            const mapOk = await ensureMapReady();
+            if (!mapOk || !map) {
+                dlog('❌ drawRoute: mapa no disponible', 'error');
+                return false;
+            }
+
             try {
                 if (map.getLayer('route-line')) map.removeLayer('route-line');
                 if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
@@ -1800,7 +1895,11 @@
                 if (map.getSource('route-remaining')) map.removeSource('route-remaining');
             } catch (e) {}
             routeLayers = [];
-            clearRoute();
+            if (pickupMarker) { pickupMarker.remove(); pickupMarker = null; }
+            if (dropoffMarker) { dropoffMarker.remove(); dropoffMarker = null; }
+            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            currentNavigationSteps = []; currentNavigationIndex = 0;
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
 
             if (originCoords[0] !== waypointCoords[0] || originCoords[1] !== waypointCoords[1]) {
                 const pe = document.createElement('div');
@@ -1816,7 +1915,13 @@
             else coordinates = [[originCoords[1],originCoords[0]],[waypointCoords[1],waypointCoords[0]],[destinationCoords[1],destinationCoords[0]]];
 
             const coordsString = coordinates.map(c => c.join(',')).join(';');
-            const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
+
+            let url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
+            if (Number.isFinite(smoothedBearing)) {
+                const heading = Math.round(((smoothedBearing % 360) + 360) % 360);
+                const bearings = coordinates.map((_, i) => i === 0 ? `${heading},90` : '180,90').join(';');
+                url += `&bearings=${bearings}`;
+            }
 
             try {
                 dlog('🛣️ Calculando ruta con OSRM...', 'info');
@@ -1825,6 +1930,18 @@
 
                 if (data.routes && data.routes.length > 0) {
                     const route = data.routes[0];
+
+                    const rawCoords = route.geometry && route.geometry.coordinates;
+                    if (!Array.isArray(rawCoords) || rawCoords.length < 2) {
+                        dlog('❌ OSRM devolvió geometría inválida', 'error');
+                        return false;
+                    }
+                    const cleanedCoords = cleanRoadRouteGeometry(rawCoords);
+                    if (!Array.isArray(cleanedCoords) || cleanedCoords.length < 2) {
+                        dlog('❌ Limpieza devolvió geometría inválida', 'error');
+                        return false;
+                    }
+
                     currentNavigationSteps = route.legs.flatMap(leg => leg.steps || []);
                     currentNavigationIndex = 0;
                     updateNavigationPanel(currentNavigationSteps[0]);
@@ -1844,7 +1961,7 @@
                         data: {
                             type: 'Feature',
                             properties: {},
-                            geometry: { type: 'LineString', coordinates: route.geometry.coordinates }
+                            geometry: { type: 'LineString', coordinates: cleanedCoords }
                         }
                     });
                     map.addLayer({
@@ -1856,13 +1973,16 @@
                     });
 
                     routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
-                    window.currentRouteCoords = route.geometry.coordinates;
+
+                    window.currentRouteCoords = cleanedCoords;
                     window.currentRouteDistance = route.distance || 1000;
                     lastRouteProgressIndex = 0;
+                    window.currentRouteSnap = null;
 
                     drawManeuverArrow(currentNavigationSteps);
                     speakInstruction('Siga la ruta');
                     dlog('✅ Ruta OSRM dibujada: ' + Math.round(route.distance) + 'm', 'success');
+                    return true;
                 } else {
                     throw new Error('OSRM no devolvió rutas');
                 }
@@ -1872,6 +1992,7 @@
 
                 setTimeout(async () => {
                     if (!currentRideId || !currentRouteTarget) return;
+                    if (isRerouting) return;
                     try {
                         if (currentRideStatus === 'aceptado') {
                             const { data: ride } = await supabaseClient
@@ -1892,6 +2013,7 @@
                         dlog('❌ Reintento fallido: ' + err.message, 'error');
                     }
                 }, 2000);
+                return false;
             }
         }
 
@@ -1943,6 +2065,10 @@
 
             const distanceToManeuver = getDistanceFromLatLonInMeters(driverLat, driverLng, stepLat, stepLng);
             if (distanceToManeuver < 25 && currentNavigationIndex < currentNavigationSteps.length - 1) {
+                const now = Date.now();
+                if (now - lastManeuverAdvanceTime < 2000) return;
+                lastManeuverAdvanceTime = now;
+
                 currentNavigationIndex++;
                 const nextStep = currentNavigationSteps[currentNavigationIndex];
                 updateNavigationPanel(nextStep);
@@ -1989,10 +2115,9 @@
             currentNavigationSteps = []; currentNavigationIndex = 0;
             window.currentRouteCoords = null;
             window.currentRouteDistance = 0;
+            window.currentRouteSnap = null;
             lastRouteProgressIndex = 0;
             offRouteStartTime = null;
-            lastRerouteTime = 0;
-            isRerouting = false;
             if (window.speechSynthesis) window.speechSynthesis.cancel();
             document.getElementById('navigation-panel').classList.remove('active');
         }
@@ -2001,8 +2126,13 @@
             if (!currentRideId || !currentPosition) return showToast('No hay viaje activo', 'exclamation-triangle');
             try {
                 const { data: ride } = await supabaseClient.from('rides').select('origin_lat, origin_lng, destination_lat, destination_lng').eq('id', currentRideId).single();
-                if (currentRideStatus === 'aceptado' && ride.origin_lat) { await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]); currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng }; }
-                else if (currentRideStatus === 'en_curso' && ride.destination_lat) { await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]); currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng }; }
+                if (currentRideStatus === 'aceptado' && ride.origin_lat) {
+                    const drawn = await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
+                    if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
+                } else if (currentRideStatus === 'en_curso' && ride.destination_lat) {
+                    const drawn = await drawRoute(currentPosition, currentPosition, [ride.destination_lat, ride.destination_lng]);
+                    if (drawn) currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
+                }
             } catch (e) { showToast('Error al redireccionar', 'exclamation-circle'); }
         }
 
@@ -2028,12 +2158,7 @@
                         setTimeout(() => {
                             if (map && mapInitialized) {
                                 updateDriverMarker(currentPosition[0], currentPosition[1], 0);
-                                map.jumpTo({
-                                    center: [currentPosition[1], currentPosition[0]],
-                                    zoom: 16,
-                                    pitch: 0,
-                                    bearing: 0
-                                });
+                                map.jumpTo({ center: [currentPosition[1], currentPosition[0]], zoom: 16, pitch: 0, bearing: 0 });
                             }
                         }, 500);
                     }
@@ -2083,9 +2208,6 @@
             } else createDriverMarker(lat, lng, bearing);
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        //  startTracking
-        // ═══════════════════════════════════════════════════════════════
         function startTracking() {
             if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
             let previousCoord = null;
@@ -2101,12 +2223,10 @@
                     const gpsSpeed = position.coords.speed || 0;
                     const speedKmh = gpsSpeed * 3.6;
                     window.currentSpeedKmh = speedKmh;
+                    window.currentGpsAccuracy = position.coords.accuracy || 0;
+
                     const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
 
-                    // IMPORTANTE: el indicador representa la posición GPS REAL.
-                    // No lo forzamos a la calle más cercana: el conductor puede estar
-                    // dentro de un edificio, estacionamiento, patio, pasaje, etc.
-                    // El snapping se usa únicamente para calcular progreso sobre la ruta.
                     const renderLat = gpsLat;
                     const renderLng = gpsLng;
                     currentPosition = [gpsLat, gpsLng];
@@ -2150,21 +2270,54 @@
                         checkAndAdvanceManeuver(renderLat, renderLng);
                     }
 
-                    // Actualizar la ruta restante SIN dibujar una línea recta elástica
-                    // desde el GPS hasta la calle. El indicador conserva su posición GPS real.
-                    // Si el conductor está fuera de la geometría de la ruta, el auto-reroute
-                    // calcula una nueva ruta vial desde su posición real.
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
                         calculateRouteProgress(gpsLat, gpsLng);
-                        const idx = Math.max(0, Math.min(lastRouteProgressIndex, window.currentRouteCoords.length - 2));
-                        const remainingCoords = window.currentRouteCoords.slice(idx);
+                        const coords = window.currentRouteCoords;
+                        const snap = window.currentRouteSnap;
+                        const segIdx = Math.max(0, Math.min(
+                            snap && Number.isFinite(snap.segmentIndex)
+                                ? snap.segmentIndex
+                                : lastRouteProgressIndex,
+                            coords.length - 2
+                        ));
 
-                        if (remainingCoords.length >= 2) {
+                        const remainingCoords = [];
+                        const snapDistance = snap && Number.isFinite(snap.distance)
+                            ? snap.distance
+                            : Infinity;
+
+                        if (snap && Number.isFinite(snap.lat) && Number.isFinite(snap.lng)) {
+                            const snapPoint = [snap.lng, snap.lat];
+                            const allowGpsLink = snapDistance <= OFF_ROUTE_THRESHOLD_M;
+                            if (allowGpsLink) {
+                                // ▼ FIX: usar gpsLng/gpsLat reales del scope (antes driverLng/driverLat, variables inexistentes → [undefined, undefined] y la polilínea no arrancaba del pin) ▼
+                                remainingCoords.push([gpsLng, gpsLat]);
+                                // ▲ FIX
+                            }
+                            remainingCoords.push(snapPoint);
+                        } else {
+                            remainingCoords.push(coords[segIdx]);
+                        }
+
+                        for (let i = segIdx + 1; i < coords.length; i++) {
+                            remainingCoords.push(coords[i]);
+                        }
+
+                        const finalRemaining = [];
+                        for (const c of remainingCoords) {
+                            if (!c || c.length < 2) continue;
+                            const prev = finalRemaining[finalRemaining.length - 1];
+                            if (!prev || getDistanceFromLatLonInMeters(prev[1], prev[0], c[1], c[0]) >= 0.15) {
+                                finalRemaining.push(c);
+                            }
+                        }
+
+                        if (finalRemaining.length >= 2) {
                             try {
                                 map.getSource('route-remaining').setData({
                                     type: 'Feature',
                                     properties: {},
-                                    geometry: { type: 'LineString', coordinates: remainingCoords }
+                                    geometry: { type: 'LineString', coordinates: finalRemaining }
                                 });
                             } catch (e) {}
                         }
@@ -2190,7 +2343,6 @@
                         lastMovingTime = now;
                     } else if (isCurrentlyMoving && (now - lastMovingTime) > 5000) {
                         isCurrentlyMoving = false;
-                        // No mover la cámara aquí: el controlador de navegación es el único dueño de la cámara.
                     }
                 },
                 (error) => { dlog('Error GPS: ' + error.message, 'warning'); },
@@ -2352,7 +2504,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. Híbrido: Mapbox (mapa) + OSRM (rutas)', 'success');
+        dlog('App iniciada. v6.2 — guard de reroute corregido + drawRoute atómico + auto-init de mapa + fix polilínea desde el pin + loader al aceptar viaje', 'success');
     </script>
 </body>
-</html>
+</html>;

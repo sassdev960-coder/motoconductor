@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V6.2 - REROUTE GUARD FIX + MAP AUTO-INIT + ATOMIC ROUTE SWAP -->
+<!-- ROUTE STREET-FOLLOWING V6.3 - REROUTE GUARD FIX + MAP AUTO-INIT + ATOMIC ROUTE SWAP + PUSH NOTIFICATIONS FCM -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -571,6 +571,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // Importamos el plugin de notificaciones push (Capacitor)
+        const PushNotifications = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) || null;
+
         // ═══════════════════════════════════════════════════════════════
         //  CONFIGURACIÓN
         // ═══════════════════════════════════════════════════════════════
@@ -1190,6 +1193,77 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
+        //  NOTIFICACIONES PUSH NATIVAS (FCM)
+        // ═══════════════════════════════════════════════════════════════
+        async function setupPushNotifications() {
+            if (!PushNotifications) {
+                dlog('ℹ️ PushNotifications no disponible (modo web)', 'info');
+                return;
+            }
+
+            try {
+                // 1. Crear canal de alta prioridad (importancia 5 = MAX)
+                await PushNotifications.createChannel({
+                    id: 'ride_requests',
+                    name: 'Solicitudes de Viaje',
+                    description: 'Notificaciones de nuevas carreras',
+                    importance: 5,
+                    visibility: 1,
+                    sound: 'default',
+                    vibration: true,
+                    lights: true,
+                    lightColor: '#ff7a00'
+                });
+                dlog('📢 Canal ride_requests creado', 'success');
+            } catch (e) {
+                dlog('⚠️ Error creando canal: ' + e.message, 'warning');
+            }
+
+            // 2. Pedir permisos
+            try {
+                let perm = await PushNotifications.requestPermissions();
+                if (perm.receive !== 'granted') {
+                    dlog('❌ Permiso de notificaciones denegado', 'warning');
+                    return;
+                }
+                await PushNotifications.register();
+            } catch (e) {
+                dlog('❌ Error en registro push: ' + e.message, 'error');
+                return;
+            }
+
+            // 3. Escuchar cuando FCM nos da el token
+            PushNotifications.addListener('registration', async (token) => {
+                dlog('📱 Token FCM: ' + token.value.substring(0, 25) + '...', 'success');
+                if (currentDriverId) {
+                    try {
+                        await supabaseClient.from('drivers').update({ fcm_token: token.value }).eq('id', currentDriverId);
+                        dlog('✅ Token guardado en Supabase', 'success');
+                    } catch (e) {
+                        dlog('❌ Error guardando token: ' + e.message, 'error');
+                    }
+                }
+            });
+
+            PushNotifications.addListener('registrationError', (error) => {
+                dlog('❌ Error FCM: ' + JSON.stringify(error), 'error');
+            });
+
+            // 4. Cuando el conductor toca la notificación, abrimos la vista de viajes
+            PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+                dlog('👆 Notificación tocada', 'info');
+                try {
+                    switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
+                } catch (e) {}
+            });
+
+            // 5. Log si llega una notificación mientras la app está abierta
+            PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                dlog('🔔 Push recibido en foreground: ' + (notification.title || ''), 'info');
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         //  NOTIFICACIONES
         // ═══════════════════════════════════════════════════════════════
         function playNotificationSound() {
@@ -1264,6 +1338,7 @@
                 setupRideSubscription();
                 setupChatSubscription();
                 routeUserBasedOnProfile();
+                await setupPushNotifications();
             } catch (error) {
                 alert('Error: ' + error.message);
                 await logout();
@@ -1281,6 +1356,7 @@
                     setupRideSubscription();
                     setupChatSubscription();
                     routeUserBasedOnProfile();
+                    await setupPushNotifications();
                 } else {
                     document.getElementById('view-login').classList.add('active');
                 }
@@ -1734,9 +1810,7 @@
                 pendingRide = null;
                 hideRideModal();
 
-                // ▼ FIX: overlay de carga mientras se prepara el mapa y la ruta ▼
                 showLoading('Preparando navegación...');
-                // ▲ FIX
 
                 if (!currentPosition) {
                     try {
@@ -1772,9 +1846,7 @@
                 }
 
                 if (ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
-                    // ▼ FIX: feedback durante el cálculo de la ruta ▼
                     document.getElementById('loadingText').textContent = 'Calculando ruta...';
-                    // ▲ FIX
                     const drawn = await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
                     if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                 }
@@ -1782,7 +1854,7 @@
                 setNavigationMode(true);
             } finally {
                 isAcceptingRide = false;
-                hideLoading();   // ▼ FIX: cerrar overlay en cualquier salida (return o éxito) ▼
+                hideLoading();
             }
         }
 
@@ -1860,7 +1932,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  drawRoute — OSRM. AHORA: inicializa mapa, retorna boolean, no usa clearRoute.
+        //  drawRoute — OSRM
         // ═══════════════════════════════════════════════════════════════
         function cleanRoadRouteGeometry(coords) {
             if (!Array.isArray(coords) || coords.length < 2) return coords || [];
@@ -2290,9 +2362,7 @@
                             const snapPoint = [snap.lng, snap.lat];
                             const allowGpsLink = snapDistance <= OFF_ROUTE_THRESHOLD_M;
                             if (allowGpsLink) {
-                                // ▼ FIX: usar gpsLng/gpsLat reales del scope (antes driverLng/driverLat, variables inexistentes → [undefined, undefined] y la polilínea no arrancaba del pin) ▼
                                 remainingCoords.push([gpsLng, gpsLat]);
-                                // ▲ FIX
                             }
                             remainingCoords.push(snapPoint);
                         } else {
@@ -2504,7 +2574,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.2 — guard de reroute corregido + drawRoute atómico + auto-init de mapa + fix polilínea desde el pin + loader al aceptar viaje', 'success');
+        dlog('App iniciada. v6.3 — v6.2 + notificaciones push nativas (FCM alta prioridad)', 'success');
     </script>
 </body>
-</html>;
+</html>

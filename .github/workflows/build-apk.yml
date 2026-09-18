@@ -37,6 +37,13 @@ jobs:
       - name: Anadir plataforma Android
         run: npx cap add android
 
+      - name: Inyectar google-services.json desde secreto
+        run: |
+          mkdir -p android/app
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          echo "google-services.json inyectado:"
+          head -c 200 android/app/google-services.json
+
       - name: Configurar AndroidManifest con permisos
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
@@ -48,6 +55,7 @@ jobs:
           sed -i '/<application/i\    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST
           sed -i '/<application/i\    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST
           sed -i '/<application/i\    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           sed -i '/<application/i\    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
           sed -i '/<application/i\    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST
           sed -i '/<application/i\    <uses-feature android:name="android.hardware.location.gps" android:required="false" />' $MANIFEST

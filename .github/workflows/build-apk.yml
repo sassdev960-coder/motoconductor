@@ -44,6 +44,55 @@ jobs:
           echo "google-services.json inyectado:"
           head -c 200 android/app/google-services.json
 
+      - name: Instalar ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Copiar iconos de la app (launcher)
+        run: |
+          ICON=recursos/icon.png
+          if [ ! -f "$ICON" ]; then
+            echo "No existe $ICON, saltando iconos del launcher"
+            exit 0
+          fi
+          RES=android/app/src/main/res
+          mkdir -p $RES/mipmap-mdpi $RES/mipmap-hdpi $RES/mipmap-xhdpi $RES/mipmap-xxhdpi $RES/mipmap-xxxhdpi
+          convert $ICON -resize 48x48   $RES/mipmap-mdpi/ic_launcher.png
+          convert $ICON -resize 72x72   $RES/mipmap-hdpi/ic_launcher.png
+          convert $ICON -resize 96x96   $RES/mipmap-xhdpi/ic_launcher.png
+          convert $ICON -resize 144x144 $RES/mipmap-xxhdpi/ic_launcher.png
+          convert $ICON -resize 192x192 $RES/mipmap-xxxhdpi/ic_launcher.png
+          convert $ICON -resize 48x48   $RES/mipmap-mdpi/ic_launcher_round.png
+          convert $ICON -resize 72x72   $RES/mipmap-hdpi/ic_launcher_round.png
+          convert $ICON -resize 96x96   $RES/mipmap-xhdpi/ic_launcher_round.png
+          convert $ICON -resize 144x144 $RES/mipmap-xxhdpi/ic_launcher_round.png
+          convert $ICON -resize 192x192 $RES/mipmap-xxxhdpi/ic_launcher_round.png
+          echo "Iconos del launcher generados"
+
+      - name: Copiar iconos de notificacion
+        run: |
+          RES=android/app/src/main/res
+          mkdir -p $RES/drawable-mdpi $RES/drawable-hdpi $RES/drawable-xhdpi $RES/drawable-xxhdpi $RES/drawable-xxxhdpi
+          if [ -f "recursos/ic_stat_ride.png" ]; then
+            convert recursos/ic_stat_ride.png -resize 24x24  $RES/drawable-mdpi/ic_stat_ride.png
+            convert recursos/ic_stat_ride.png -resize 36x36  $RES/drawable-hdpi/ic_stat_ride.png
+            convert recursos/ic_stat_ride.png -resize 48x48  $RES/drawable-xhdpi/ic_stat_ride.png
+            convert recursos/ic_stat_ride.png -resize 72x72  $RES/drawable-xxhdpi/ic_stat_ride.png
+            convert recursos/ic_stat_ride.png -resize 96x96  $RES/drawable-xxxhdpi/ic_stat_ride.png
+            echo "Icono de notificacion pequeno generado"
+          else
+            echo "No existe recursos/ic_stat_ride.png"
+          fi
+          if [ -f "recursos/ic_notif_large.png" ]; then
+            convert recursos/ic_notif_large.png -resize 128x128 $RES/drawable-mdpi/ic_notif_large.png
+            convert recursos/ic_notif_large.png -resize 192x192 $RES/drawable-hdpi/ic_notif_large.png
+            convert recursos/ic_notif_large.png -resize 256x256 $RES/drawable-xhdpi/ic_notif_large.png
+            convert recursos/ic_notif_large.png -resize 384x384 $RES/drawable-xxhdpi/ic_notif_large.png
+            convert recursos/ic_notif_large.png -resize 512x512 $RES/drawable-xxxhdpi/ic_notif_large.png
+            echo "Icono de notificacion grande generado"
+          else
+            echo "No existe recursos/ic_notif_large.png"
+          fi
+
       - name: Configurar AndroidManifest con permisos
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml

@@ -37,6 +37,22 @@ jobs:
       - name: Anadir plataforma Android
         run: npx cap add android
 
+      - name: Configurar compatibilidad con Android 6+ (target Android 9)
+        run: |
+          GRADLE_FILE="android/variables.gradle"
+          echo "=== ANTES ==="
+          cat $GRADLE_FILE
+
+          # minSdkVersion 23 = Android 6.0 Marshmallow
+          sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 23/' $GRADLE_FILE
+          # targetSdkVersion 28 = Android 9.0 Pie (compatible con Galaxy J7 Pro y demas)
+          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 28/' $GRADLE_FILE
+          # compileSdkVersion 28 = compilar contra librerias de Android 9
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 28/' $GRADLE_FILE
+
+          echo "=== DESPUES ==="
+          cat $GRADLE_FILE
+
       - name: Inyectar google-services.json desde secreto
         run: |
           mkdir -p android/app
@@ -134,6 +150,20 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
+      - name: Verificar versiones del APK compilado
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          if [ -f "$APK" ]; then
+            echo "=== APK generado ==="
+            ls -lh $APK
+            echo ""
+            echo "=== Verificando SDK versions del APK ==="
+            $ANDROID_HOME/build-tools/*/aapt dump badging $APK | grep -E "sdkVersion|targetSdkVersion|package:" || true
+          else
+            echo "ERROR: no se genero el APK"
+            exit 1
+          fi
 
       - name: Subir APK
         uses: actions/upload-artifact@v4

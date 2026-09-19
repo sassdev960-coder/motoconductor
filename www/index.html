@@ -226,7 +226,7 @@
         .profile-item-label{font-size:13px;color:var(--gray-text);font-weight:500;display:flex;align-items:center;gap:10px}
         .profile-item-label i{width:16px;color:var(--primary-orange);font-size:13px}
         .profile-item-value{font-size:14px;font-weight:600;color:var(--white);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        #view-login{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;background:radial-gradient(circle at top,var(--bg-surface),var(--bg-black))}
+        #view-login{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;background:radial-gradient(circle at top,var(--bg-surface),var(--bg-black));overflow-y:auto}
         #view-login.active{display:flex}
         .login-box{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px}
         .login-logo-container{text-align:center;margin-bottom:10px}
@@ -244,6 +244,8 @@
         .btn-outline{background:transparent;border:2px solid var(--primary-orange);color:var(--primary-orange);box-shadow:none}
         .btn-row{display:flex;gap:10px;margin-top:15px;width:100%}
         .btn-row .login-btn{margin-top:0;flex:1;font-size:14px;padding:14px}
+        #view-signup{display:none;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:24px;background:radial-gradient(circle at top,var(--bg-surface),var(--bg-black));overflow-y:auto}
+        #view-signup.active{display:flex}
         #view-onboarding{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;background:radial-gradient(circle at top,var(--bg-surface),var(--bg-black));overflow-y:auto}
         #view-onboarding.active{display:flex}
         .onboarding-box{width:100%;max-width:360px;padding:20px 0}
@@ -259,6 +261,7 @@
         .file-upload-box input[type="file"]{width:100%;color:var(--gray-text);font-size:13px}
         .photo-options{display:flex;flex-direction:column;gap:10px}
         #selfiePreview{display:none;width:120px;height:120px;border-radius:var(--border-radius-full);margin:10px auto;object-fit:cover;border:4px solid var(--primary-orange);box-shadow:0 8px 25px var(--primary-orange-glow)}
+        #apSelfiePreview{display:none;width:120px;height:120px;border-radius:var(--border-radius-full);margin:10px auto;object-fit:cover;border:4px solid var(--primary-orange);box-shadow:0 8px 25px var(--primary-orange-glow)}
         .loading-overlay{position:fixed;inset:0;background:rgba(10,10,11,0.85);backdrop-filter:blur(16px);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999;opacity:0;visibility:hidden;transition:opacity 0.4s ease,visibility 0.4s ease}
         .loading-overlay.active{opacity:1;visibility:visible}
         .spinner{width:55px;height:55px;border:4px solid rgba(255,122,0,0.15);border-top-color:var(--primary-orange);border-radius:var(--border-radius-full);animation:spin 0.8s ease-in-out infinite;margin-bottom:20px}
@@ -342,6 +345,53 @@
                 <i class="fas fa-eye icon-right" id="togglePasswordIcon" onclick="togglePassword()"></i>
             </div>
             <button class="login-btn" onclick="login()"><i class="fas fa-arrow-right"></i> Iniciar Sesión</button>
+            <button class="login-btn btn-outline" onclick="showApplication()"><i class="fas fa-user-plus"></i> Quiero ser conductor</button>
+        </div>
+    </div>
+
+    <!-- SOLICITUD DE CONDUCTOR (envía al admin para aprobación) -->
+    <div id="view-signup" class="view">
+        <div class="onboarding-box" style="padding-top:10px;">
+            <h2 style="text-align:center;color:var(--primary-orange);font-size:24px;font-weight:800;">Solicitud de Conductor</h2>
+            <p style="text-align:center;color:var(--gray-text);font-size:13px;margin:8px 0 20px;line-height:1.5;">
+                Envía tus datos. Un administrador revisará tu solicitud y te dará acceso con una contraseña temporal.
+            </p>
+
+            <input type="text" id="apFullName" class="login-input" placeholder="Nombres y Apellidos">
+            <input type="tel" id="apPhone" class="login-input" placeholder="Teléfono (Ej: 70012345)">
+            <input type="text" id="apIdentity" class="login-input" placeholder="Cédula / CI">
+            <input type="text" id="apMotoModel" class="login-input" placeholder="Modelo de moto (Ej: Suzuki GN 125)">
+            <input type="text" id="apMotoPlate" class="login-input" placeholder="Placa (Ej: 1234-ABC)">
+            <input type="text" id="apAddress" class="login-input" placeholder="Dirección (Zona, Calle)">
+
+            <button class="login-btn btn-outline" onclick="getApplicationGPS()">
+                <i class="fas fa-map-marker-alt"></i> Fijar GPS Actual
+            </button>
+            <div id="apGpsStatus" class="status-text">Ubicación GPS no registrada</div>
+
+            <div class="file-upload-box mt-15">
+                <i class="fas fa-file-invoice"></i>
+                <label>Foto de factura (Luz, Agua o Gas)</label>
+                <input type="file" id="apBillFile" accept="image/*,application/pdf">
+            </div>
+
+            <div class="photo-options mt-15">
+                <input type="file" id="apSelfieCamera" accept="image/*" capture="user" style="display:none;" onchange="handleAppSelfie(this)">
+                <input type="file" id="apSelfieGallery" accept="image/*" style="display:none;" onchange="handleAppSelfie(this)">
+                <button class="login-btn btn-outline" onclick="document.getElementById('apSelfieCamera').click()">
+                    <i class="fas fa-camera"></i> Tomar selfie
+                </button>
+                <button class="login-btn btn-outline" style="margin-top:5px;" onclick="document.getElementById('apSelfieGallery').click()">
+                    <i class="fas fa-images"></i> Subir selfie desde galería
+                </button>
+            </div>
+            <div id="apSelfieStatus" class="status-text mt-15">Ninguna foto seleccionada</div>
+            <img id="apSelfiePreview" src="" alt="Previsualización">
+
+            <div class="btn-row">
+                <button class="login-btn btn-outline" onclick="showLogin()"><i class="fas fa-arrow-left"></i> Volver</button>
+                <button class="login-btn" onclick="submitApplication()">Enviar <i class="fas fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 
@@ -349,7 +399,7 @@
         <div class="onboarding-box">
             <div class="ob-step active" id="obStep1">
                 <h2>¡Gracias por unirte!</h2>
-                <p>Estás a unos pasos de ser el campeón de las calles. Vamos a crear tu perfil.</p>
+                <p>Estás a unos pasos de ser el campeón de las calles. Vamos a completar tu perfil.</p>
                 <button class="login-btn mt-15" onclick="nextObStep(2)">Continuar <i class="fas fa-arrow-right"></i></button>
             </div>
             <div class="ob-step" id="obStep2">
@@ -581,11 +631,9 @@
         const COMPASS_SMOOTHING = 0.10;
         const SNAP_MAX_DISTANCE = 60;
 
-        // ▼▼▼ FIX: umbrales más tolerantes para evitar reroutes por ruido GPS ▼▼▼
         const OFF_ROUTE_THRESHOLD_M = 45;
-        const OFF_ROUTE_DURATION_MS = 8000;      // antes 5000
-        const REROUTE_COOLDOWN_MS = 20000;       // antes 15000
-        // ▲▲▲ FIX ▲▲▲
+        const OFF_ROUTE_DURATION_MS = 8000;
+        const REROUTE_COOLDOWN_MS = 20000;
 
         const NAV_ZOOM_MIN = 16.8;
         const NAV_ZOOM_MAX = 18.2;
@@ -687,20 +735,17 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  OCULTAR/MOSTRAR MENÚ INFERIOR EN NAVEGACIÓN
+        //  NAVEGACIÓN
         // ═══════════════════════════════════════════════════════════════
         function setNavigationMode(enabled) {
             const bottomNav = document.querySelector('.bottom-nav');
             const viajesView = document.getElementById('view-viajes');
             const navigationPanel = document.getElementById('navigation-panel');
-
             navigationCameraLocked = enabled;
-
             if (enabled) {
                 bottomNav?.classList.add('nav-hidden');
                 viajesView?.classList.add('navigation-active');
                 navigationPanel?.classList.add('active');
-
                 if (map && mapInitialized) {
                     requestAnimationFrame(() => {
                         try { map.resize(); } catch (e) {}
@@ -742,19 +787,15 @@
 
         function handleOrientation(event) {
             let heading = null;
-
             const beta = event.beta;
             const isVertical = beta !== null && Math.abs(beta) > 45 && Math.abs(beta) < 135;
-
             if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null && !isNaN(event.webkitCompassHeading)) {
                 heading = event.webkitCompassHeading;
             } else if (event.alpha !== null && event.alpha !== undefined && !isNaN(event.alpha)) {
                 heading = (360 - event.alpha) % 360;
             }
-
             if (heading === null) return;
             compassRaw = heading;
-
             if (compassHeading === null) {
                 compassHeading = heading;
             } else {
@@ -780,14 +821,11 @@
         function calculateRouteProgress(driverLat, driverLng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return 0;
-
             const BACK_WINDOW = 120;
             const FORWARD_WINDOW = 180;
             const startIdx = Math.max(0, lastRouteProgressIndex - BACK_WINDOW);
             const endIdx = Math.min(coords.length - 2, lastRouteProgressIndex + FORWARD_WINDOW);
-
             let best = null;
-
             const getHeadingForSegment = (a, b) => {
                 const y = Math.sin((b[1] - a[1]) * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180);
                 const x = Math.cos(a[0] * Math.PI / 180) * Math.sin(b[0] * Math.PI / 180) -
@@ -795,32 +833,20 @@
                           Math.cos((b[1] - a[1]) * Math.PI / 180);
                 return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
             };
-
             const angleDiff = (a, b) => {
                 let d = Math.abs(a - b) % 360;
                 return d > 180 ? 360 - d : d;
             };
-
             let movementHeading = null;
-            if (isCurrentlyMoving && smoothedBearing !== null) {
-                movementHeading = smoothedBearing;
-            } else if (typeof compassHeading === 'number' && compassAvailable) {
-                movementHeading = compassHeading;
-            }
+            if (isCurrentlyMoving && smoothedBearing !== null) movementHeading = smoothedBearing;
+            else if (typeof compassHeading === 'number' && compassAvailable) movementHeading = compassHeading;
 
             for (let i = startIdx; i <= endIdx; i++) {
                 const a = coords[i], b = coords[i + 1];
                 if (!a || !b) continue;
-
-                const proj = projectPointOnSegment(
-                    driverLat, driverLng, a[1], a[0], b[1], b[0]
-                );
-                const distance = getDistanceFromLatLonInMeters(
-                    driverLat, driverLng, proj[0], proj[1]
-                );
-
+                const proj = projectPointOnSegment(driverLat, driverLng, a[1], a[0], b[1], b[0]);
+                const distance = getDistanceFromLatLonInMeters(driverLat, driverLng, proj[0], proj[1]);
                 let score = distance;
-
                 if (movementHeading !== null) {
                     const roadHeading = getHeadingForSegment(a, b);
                     const diff = angleDiff(movementHeading, roadHeading);
@@ -828,47 +854,30 @@
                     if (directionalDiff > 75) score += 35;
                     else if (directionalDiff > 55) score += 12;
                 }
-
                 if (i < lastRouteProgressIndex) {
                     const back = lastRouteProgressIndex - i;
                     score += Math.min(back * 0.12, 8);
                 }
-
                 if (!best || score < best.score) {
                     best = { score, distance, segmentIndex: i, projection: proj };
                 }
             }
-
             if (!best || best.distance > Math.max(SNAP_MAX_DISTANCE, 55)) {
                 for (let i = 0; i < coords.length - 1; i++) {
                     const a = coords[i], b = coords[i + 1];
-                    const proj = projectPointOnSegment(
-                        driverLat, driverLng, a[1], a[0], b[1], b[0]
-                    );
-                    const distance = getDistanceFromLatLonInMeters(
-                        driverLat, driverLng, proj[0], proj[1]
-                    );
+                    const proj = projectPointOnSegment(driverLat, driverLng, a[1], a[0], b[1], b[0]);
+                    const distance = getDistanceFromLatLonInMeters(driverLat, driverLng, proj[0], proj[1]);
                     if (!best || distance < best.distance) {
                         best = { score: distance, distance, segmentIndex: i, projection: proj };
                     }
                 }
             }
-
             if (best) {
                 lastRouteProgressIndex = best.segmentIndex;
-                window.currentRouteSnap = {
-                    lat: best.projection[0],
-                    lng: best.projection[1],
-                    distance: best.distance,
-                    segmentIndex: best.segmentIndex
-                };
+                window.currentRouteSnap = { lat: best.projection[0], lng: best.projection[1], distance: best.distance, segmentIndex: best.segmentIndex };
             } else {
-                window.currentRouteSnap = {
-                    lat: null, lng: null, distance: Infinity,
-                    segmentIndex: lastRouteProgressIndex
-                };
+                window.currentRouteSnap = { lat: null, lng: null, distance: Infinity, segmentIndex: lastRouteProgressIndex };
             }
-
             return lastRouteProgressIndex;
         }
 
@@ -981,10 +990,7 @@
         let lastRerouteTime = 0;
         let isRerouting = false;
         let lastManeuverAdvanceTime = 0;
-
-        // ▼▼▼ FIX: contador de fixes para evitar spam de logs de "posponiendo" ▼▼▼
         let pendingRouteLogAt = 0;
-        // ▲▲▲ FIX ▲▲▲
 
         let animationFrameId = null;
         let markerCurrentPos = null;
@@ -998,6 +1004,9 @@
         let isNotificationPlaying = false;
         let isRejecting = false;
         let isAcceptingRide = false;
+
+        // Variables para la solicitud de conductor
+        let apLat = null, apLng = null, apSelfieFile = null;
 
         window.currentGpsAccuracy = 0;
 
@@ -1046,19 +1055,15 @@
                 animationFrameId = requestAnimationFrame(animateMarker);
                 return;
             }
-
             const POSITION_SMOOTHING = 0.18;
             markerCurrentPos[0] += (markerTargetPos[0] - markerCurrentPos[0]) * POSITION_SMOOTHING;
             markerCurrentPos[1] += (markerTargetPos[1] - markerCurrentPos[1]) * POSITION_SMOOTHING;
-
             try {
                 driverMarker.setLngLat([markerCurrentPos[1], markerCurrentPos[0]]);
                 const enNavegacion = currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso';
-
                 if (enNavegacion && map && mapInitialized) {
                     driverMarker.setRotation(0);
                     const now = performance.now();
-
                     if (!userInteracting && navigationCameraLocked && now - lastCameraUpdate >= CAMERA_UPDATE_MS) {
                         lastCameraUpdate = now;
                         const bearing = Number.isFinite(smoothedBearing) ? smoothedBearing : 0;
@@ -1067,7 +1072,6 @@
                         zoom = Math.max(NAV_ZOOM_MIN, Math.min(NAV_ZOOM_MAX, zoom));
                         const screenH = map.getContainer().offsetHeight || window.innerHeight;
                         const offsetY = Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5));
-
                         map.easeTo({
                             center: [markerCurrentPos[1], markerCurrentPos[0]],
                             zoom, bearing, pitch: NAV_PITCH,
@@ -1084,7 +1088,6 @@
                     driverMarker.setRotation(markerCurrentBearing);
                 }
             } catch (e) { console.warn('Error animando marcador:', e); }
-
             animationFrameId = requestAnimationFrame(animateMarker);
         }
 
@@ -1094,7 +1097,6 @@
         function getDistanceToRoute(driverLat, driverLng) {
             const coords = window.currentRouteCoords;
             if (!coords || coords.length < 2) return Infinity;
-
             const windowSize = offRouteStartTime !== null ? coords.length : 60;
             const startIdx = Math.max(0, lastRouteProgressIndex - windowSize);
             const endIdx = Math.min(coords.length - 1, lastRouteProgressIndex + windowSize);
@@ -1113,7 +1115,6 @@
             const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
             if (!enNavegacion || !currentRideId || !currentRouteTarget) { offRouteStartTime = null; return; }
             if (isRerouting) return;
-
             if (!window.currentRouteCoords || window.currentRouteCoords.length < 2) {
                 const now = Date.now();
                 if (now - pendingRouteLogAt > 5000) {
@@ -1123,17 +1124,13 @@
                 offRouteStartTime = null;
                 return;
             }
-
             if (window.currentGpsAccuracy > 40 && offRouteStartTime === null) {
                 dlog(`⚠️ GPS impreciso (±${Math.round(window.currentGpsAccuracy)}m), posponiendo chequeo`, 'warning');
                 return;
             }
-
             const now = Date.now();
             if (now - lastRerouteTime < REROUTE_COOLDOWN_MS) return;
-
             const dist = getDistanceToRoute(driverLat, driverLng);
-
             if (dist > OFF_ROUTE_THRESHOLD_M) {
                 if (offRouteStartTime === null) {
                     offRouteStartTime = now;
@@ -1156,12 +1153,10 @@
             isRerouting = true;
             lastRerouteTime = Date.now();
             offRouteStartTime = null;
-
             try {
                 showToast('🔀 Recalculando ruta...', 'route');
                 speakInstruction('Recalculando ruta');
                 const newPosition = [driverLat, driverLng];
-
                 let drawn = false;
                 if (currentRideStatus === 'aceptado') {
                     const { data: ride } = await supabaseClient
@@ -1180,11 +1175,8 @@
                         if (drawn) currentRouteTarget = { lat: ride.destination_lat, lng: ride.destination_lng };
                     }
                 }
-                if (drawn) {
-                    dlog('✅ Ruta recalculada', 'success');
-                } else {
-                    dlog('⚠️ Reroute: no se pudo dibujar la nueva ruta', 'warning');
-                }
+                if (drawn) dlog('✅ Ruta recalculada', 'success');
+                else dlog('⚠️ Reroute: no se pudo dibujar la nueva ruta', 'warning');
             } catch (e) {
                 dlog('❌ Error reroute: ' + e.message, 'error');
             } finally {
@@ -1200,9 +1192,7 @@
                 dlog('ℹ️ PushNotifications no disponible (modo web)', 'info');
                 return;
             }
-
             try {
-                // 1. Crear canal de alta prioridad (importancia 5 = MAX)
                 await PushNotifications.createChannel({
                     id: 'ride_requests',
                     name: 'Solicitudes de Viaje',
@@ -1218,8 +1208,6 @@
             } catch (e) {
                 dlog('⚠️ Error creando canal: ' + e.message, 'warning');
             }
-
-            // 2. Pedir permisos
             try {
                 let perm = await PushNotifications.requestPermissions();
                 if (perm.receive !== 'granted') {
@@ -1231,8 +1219,6 @@
                 dlog('❌ Error en registro push: ' + e.message, 'error');
                 return;
             }
-
-            // 3. Escuchar cuando FCM nos da el token
             PushNotifications.addListener('registration', async (token) => {
                 dlog('📱 Token FCM: ' + token.value.substring(0, 25) + '...', 'success');
                 if (currentDriverId) {
@@ -1244,20 +1230,13 @@
                     }
                 }
             });
-
             PushNotifications.addListener('registrationError', (error) => {
                 dlog('❌ Error FCM: ' + JSON.stringify(error), 'error');
             });
-
-            // 4. Cuando el conductor toca la notificación, abrimos la vista de viajes
             PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
                 dlog('👆 Notificación tocada', 'info');
-                try {
-                    switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
-                } catch (e) {}
+                try { switchTab('viajes', document.querySelector('.nav-item:nth-child(2)')); } catch (e) {}
             });
-
-            // 5. Log si llega una notificación mientras la app está abierta
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
                 dlog('🔔 Push recibido en foreground: ' + (notification.title || ''), 'info');
             });
@@ -1319,6 +1298,115 @@
             return true;
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  LOGIN / SOLICITUD DE CONDUCTOR
+        // ═══════════════════════════════════════════════════════════════
+        function showLogin() {
+            document.getElementById('view-signup').classList.remove('active');
+            document.getElementById('view-onboarding').classList.remove('active');
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('view-login').classList.add('active');
+        }
+
+        function showApplication() {
+            document.getElementById('view-login').classList.remove('active');
+            document.getElementById('view-signup').classList.add('active');
+        }
+
+        function getApplicationGPS() {
+            const s = document.getElementById('apGpsStatus');
+            s.textContent = "Buscando satélites...";
+            s.style.color = "var(--primary-orange)";
+            navigator.geolocation.getCurrentPosition(
+                p => {
+                    apLat = p.coords.latitude;
+                    apLng = p.coords.longitude;
+                    s.innerHTML = '<i class="fas fa-check-circle"></i> Ubicación guardada';
+                    s.style.color = "var(--green-online)";
+                },
+                () => { s.textContent = "Error al leer GPS"; s.style.color = "var(--red)"; },
+                { enableHighAccuracy: true, timeout: 15000 }
+            );
+        }
+
+        function handleAppSelfie(input) {
+            if (input.files && input.files[0]) {
+                apSelfieFile = input.files[0];
+                const r = new FileReader();
+                r.onload = e => {
+                    const p = document.getElementById('apSelfiePreview');
+                    p.src = e.target.result;
+                    p.style.display = 'block';
+                    const s = document.getElementById('apSelfieStatus');
+                    s.innerHTML = '<i class="fas fa-check-circle"></i> ¡Foto lista!';
+                    s.style.color = 'var(--green-online)';
+                };
+                r.readAsDataURL(apSelfieFile);
+            }
+        }
+
+        async function submitApplication() {
+            const fullName  = document.getElementById('apFullName').value.trim();
+            const phone     = document.getElementById('apPhone').value.trim();
+            const identity  = document.getElementById('apIdentity').value.trim();
+            const motoModel = document.getElementById('apMotoModel').value.trim();
+            const motoPlate = document.getElementById('apMotoPlate').value.trim();
+            const address   = document.getElementById('apAddress').value.trim();
+            const billFile  = document.getElementById('apBillFile').files[0];
+
+            if (!fullName || !phone || !identity || !motoModel || !motoPlate || !address)
+                return alert('Completa todos los campos.');
+            if (!apLat || !apLng) return alert('Usa "Fijar GPS Actual".');
+            if (!billFile)        return alert('Adjunta la foto de la factura.');
+            if (!apSelfieFile)    return alert('Sube una selfie.');
+
+            const cleanPhone = phone.replace(/[\s\-()]/g, '').replace(/^\+?591/, '');
+
+            showLoading('Enviando solicitud...');
+            try {
+                const folder = `applications/${cleanPhone}_${Date.now()}`;
+
+                const billExt = (billFile.name.split('.').pop() || 'jpg').toLowerCase();
+                const billPath = `${folder}/factura.${billExt}`;
+                const { error: bErr } = await supabaseClient.storage
+                    .from('driver_documents').upload(billPath, billFile);
+                if (bErr) throw bErr;
+                const { data: billUrl } = supabaseClient.storage
+                    .from('driver_documents').getPublicUrl(billPath);
+
+                const selfieExt = (apSelfieFile.name.split('.').pop() || 'jpg').toLowerCase();
+                const selfiePath = `${folder}/avatar.${selfieExt}`;
+                const { error: sErr } = await supabaseClient.storage
+                    .from('driver_documents').upload(selfiePath, apSelfieFile);
+                if (sErr) throw sErr;
+                const { data: selfieUrl } = supabaseClient.storage
+                    .from('driver_documents').getPublicUrl(selfiePath);
+
+                const { error } = await supabaseClient.from('driver_applications').insert({
+                    full_name: fullName,
+                    phone: cleanPhone,
+                    identity_card: identity,
+                    vehicle_model: motoModel,
+                    vehicle_plate: motoPlate,
+                    home_address: address,
+                    home_lat: apLat,
+                    home_lng: apLng,
+                    utility_bill_url: billUrl.publicUrl,
+                    avatar_url: selfieUrl.publicUrl,
+                    status: 'pendiente'
+                });
+                if (error) throw error;
+
+                alert('✅ Solicitud enviada. Un administrador la revisará y te entregará una contraseña temporal para iniciar sesión.');
+                showLogin();
+
+            } catch (e) {
+                alert('Error: ' + e.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
         async function login() {
             const rawPhone = document.getElementById('loginPhone').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -1366,17 +1454,19 @@
         });
 
         function routeUserBasedOnProfile() {
-            if (currentDriverData.profile_completed) {
+            if (currentDriverData && currentDriverData.profile_completed) {
                 document.getElementById('view-login').classList.remove('active');
+                document.getElementById('view-signup').classList.remove('active');
                 document.getElementById('view-onboarding').classList.remove('active');
                 document.getElementById('mainApp').style.display = 'flex';
                 updateGreeting();
                 loadWalletData();
                 loadActiveRide();
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
-            } else {
+            } else if (currentDriverData) {
                 document.getElementById('obFullName').value = currentDriverData.full_name || '';
                 document.getElementById('view-login').classList.remove('active');
+                document.getElementById('view-signup').classList.remove('active');
                 document.getElementById('mainApp').style.display = 'none';
                 document.getElementById('view-onboarding').classList.add('active');
             }
@@ -1466,6 +1556,7 @@
             const { data: d, error } = await supabaseClient.from('drivers').select('*').eq('id', currentDriverId).maybeSingle();
             if (error) throw error;
             currentDriverData = d;
+            if (!d) return;
             const name = d.full_name || 'Conductor', fn = name.split(' ')[0];
             document.getElementById('userName').textContent = fn;
             document.getElementById('profileName').textContent = name;
@@ -1494,6 +1585,7 @@
             currentDriverId = null; currentDriverData = null;
             document.getElementById('mainApp').style.display = 'none';
             document.getElementById('view-onboarding').classList.remove('active');
+            document.getElementById('view-signup').classList.remove('active');
             document.getElementById('view-login').classList.add('active');
             if (window.rideSubscription) { supabaseClient.removeChannel(window.rideSubscription); window.rideSubscription = null; }
             if (chatSubscription) { try { supabaseClient.removeChannel(chatSubscription); chatSubscription = null; } catch (e) {} }
@@ -1718,9 +1810,7 @@
             offRouteStartTime = null;
             lastRerouteTime = 0;
             isRerouting = false;
-
             setNavigationMode(false);
-
             document.getElementById('rideModal').classList.remove('active');
             document.getElementById('navigation-panel').classList.remove('active');
             currentRideId = null; currentRideStatus = null; pendingRide = null;
@@ -1937,29 +2027,20 @@
         function cleanRoadRouteGeometry(coords) {
             if (!Array.isArray(coords) || coords.length < 2) return coords || [];
             const cleaned = [coords[0]];
-
             for (let i = 1; i < coords.length; i++) {
                 const prev = cleaned[cleaned.length - 1];
                 const cur = coords[i];
                 if (!cur || cur.length < 2) continue;
-
                 const d = getDistanceFromLatLonInMeters(prev[1], prev[0], cur[1], cur[0]);
                 if (d >= 0.35) cleaned.push(cur);
             }
-
             return cleaned.length >= 2 ? cleaned : coords;
         }
 
         async function drawRoute(originCoords, waypointCoords, destinationCoords) {
-            if (!map || !mapInitialized) {
-                await initMap();
-            }
+            if (!map || !mapInitialized) { await initMap(); }
             const mapOk = await ensureMapReady();
-            if (!mapOk || !map) {
-                dlog('❌ drawRoute: mapa no disponible', 'error');
-                return false;
-            }
-
+            if (!mapOk || !map) { dlog('❌ drawRoute: mapa no disponible', 'error'); return false; }
             try {
                 if (map.getLayer('route-line')) map.removeLayer('route-line');
                 if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
@@ -1987,7 +2068,6 @@
             else coordinates = [[originCoords[1],originCoords[0]],[waypointCoords[1],waypointCoords[0]],[destinationCoords[1],destinationCoords[0]]];
 
             const coordsString = coordinates.map(c => c.join(',')).join(';');
-
             let url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
             if (Number.isFinite(smoothedBearing)) {
                 const heading = Math.round(((smoothedBearing % 360) + 360) % 360);
@@ -2002,7 +2082,6 @@
 
                 if (data.routes && data.routes.length > 0) {
                     const route = data.routes[0];
-
                     const rawCoords = route.geometry && route.geometry.coordinates;
                     if (!Array.isArray(rawCoords) || rawCoords.length < 2) {
                         dlog('❌ OSRM devolvió geometría inválida', 'error');
@@ -2061,7 +2140,6 @@
             } catch (e) {
                 dlog('❌ Error calculando ruta OSRM: ' + e.message, 'error');
                 showToast('No se pudo calcular la ruta. Reintentando...', 'exclamation-triangle');
-
                 setTimeout(async () => {
                     if (!currentRideId || !currentRouteTarget) return;
                     if (isRerouting) return;
@@ -2574,7 +2652,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.3 — v6.2 + notificaciones push nativas (FCM alta prioridad)', 'success');
+        dlog('App iniciada. v6.4 — solicitud de conductor + aprobación por admin', 'success');
     </script>
 </body>
 </html>

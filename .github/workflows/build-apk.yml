@@ -37,18 +37,18 @@ jobs:
       - name: Anadir plataforma Android
         run: npx cap add android
 
-      - name: Configurar compatibilidad con Android 6+ (target Android 9)
+      - name: Configurar compatibilidad Android 6+ (target Android 9)
         run: |
           GRADLE_FILE="android/variables.gradle"
           echo "=== ANTES ==="
           cat $GRADLE_FILE
 
-          # minSdkVersion 23 = Android 6.0 Marshmallow
+          # minSdkVersion 23 = Android 6.0 Marshmallow (instalable en Android 6+)
           sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 23/' $GRADLE_FILE
-          # targetSdkVersion 28 = Android 9.0 Pie (compatible con Galaxy J7 Pro y demas)
+          # targetSdkVersion 28 = Android 9.0 Pie (comportamiento nativo en Android 9)
           sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 28/' $GRADLE_FILE
-          # compileSdkVersion 28 = compilar contra librerias de Android 9
-          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 28/' $GRADLE_FILE
+          # compileSdkVersion 34 = requerido por Capacitor (Java 9+) — NO bajar
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 34/' $GRADLE_FILE
 
           echo "=== DESPUES ==="
           cat $GRADLE_FILE
@@ -159,7 +159,12 @@ jobs:
             ls -lh $APK
             echo ""
             echo "=== Verificando SDK versions del APK ==="
-            $ANDROID_HOME/build-tools/*/aapt dump badging $APK | grep -E "sdkVersion|targetSdkVersion|package:" || true
+            AAPT=$(find $ANDROID_HOME/build-tools -name aapt -type f | head -1)
+            if [ -n "$AAPT" ]; then
+              $AAPT dump badging $APK | grep -E "sdkVersion|targetSdkVersion|package:" || true
+            else
+              echo "aapt no encontrado, saltando verificacion"
+            fi
           else
             echo "ERROR: no se genero el APK"
             exit 1

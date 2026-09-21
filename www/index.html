@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V6.6 - PREVIEW 2D + NAVEGACIÓN 3D + ZOOM BLOQUEADO -->
+<!-- ROUTE STREET-FOLLOWING V6.7 - BANNER DE PERMISOS + REINTENTO AUTOMÁTICO -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -82,9 +82,7 @@
         .map-status-pill{background:rgba(26,28,34,0.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:var(--border-radius-full);padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white);box-shadow:var(--shadow-md)}
         .map-status-pill .pulse-dot{width:8px;height:8px;border-radius:var(--border-radius-full);background:var(--green-online);box-shadow:0 0 8px var(--green-glow);animation:pulseDot 1.5s infinite}
         @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.5}}
-
-        /* ═══ PANEL DE NAVEGACIÓN ELEGANTE ═══ */
-        .navigation-panel{position:absolute;top:105px;left:50%;transform:translateX(-50%);width:calc(100% - 36px);max-width:440px;z-index:99;background:linear-gradient(135deg,#1e40af,#1e3a8a);border-radius:22px;padding:16px 20px;display:none;align-items:center;gap:18px;box-shadow:0 12px 36px rgba(30,64,175,0.45),0 0 0 1px rgba(255,255,255,0.08) inset;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.15)}
+        .navigation-panel{position:absolute;top:105px;left:50%;transform:translateX(-50%);width:calc(100% - 36px);max-width:440px;z-index:99;background:linear-gradient(135deg,#1e40af,#1e3a8a);border-radius:22px;padding:16px 20px;display:none;align-items:center;gap:18px;box-shadow:0 12px 36px rgba(30,64,175,0.45),0 0 0 1px rgba(255,255,255,0.08) inset;backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.15)}
         .navigation-panel.active{display:flex;animation:slideDownPanel 0.35s var(--ease-out)}
         @keyframes slideDownPanel{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
         .nav-instruction{display:flex;align-items:center;justify-content:center;width:76px;height:76px;background:linear-gradient(135deg,rgba(255,255,255,0.22),rgba(255,255,255,0.12));border-radius:20px;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.25);box-shadow:0 4px 14px rgba(0,0,0,0.15) inset,0 2px 8px rgba(0,0,0,0.15)}
@@ -92,15 +90,11 @@
         .nav-details{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
         .nav-distance{font-size:32px;color:var(--white);font-weight:800;line-height:1;letter-spacing:-1px;text-shadow:0 2px 6px rgba(0,0,0,0.25)}
         .nav-text{font-size:15px;color:rgba(255,255,255,0.98);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,0.2)}
-
-        /* ═══ BOTÓN "VER RUTA COMPLETA" ═══ */
         .route-overview-btn{position:absolute;top:105px;right:18px;z-index:98;width:52px;height:52px;border-radius:var(--border-radius-full);background:rgba(26,28,34,0.92);backdrop-filter:blur(14px);border:1.5px solid rgba(255,255,255,0.15);display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.5);transition:all 0.2s var(--ease-bounce)}
         .route-overview-btn.visible{display:flex;animation:scaleIn 0.3s var(--ease-bounce)}
         .route-overview-btn:active{transform:scale(0.9)}
         .route-overview-btn i{font-size:20px;color:var(--primary-orange);filter:drop-shadow(0 0 6px var(--primary-orange-glow))}
         @keyframes scaleIn{from{transform:scale(0)}to{transform:scale(1)}}
-
-        /* ═══ BANNER DE ESTADO DE RUTA ═══ */
         .route-status-banner{position:absolute;top:calc(105px + 96px);left:50%;transform:translateX(-50%);width:calc(100% - 36px);max-width:440px;z-index:97;background:rgba(26,28,34,0.94);backdrop-filter:blur(14px);border-radius:16px;padding:12px 16px;display:none;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.1)}
         .route-status-banner.active{display:flex;animation:slideDownPanel 0.35s var(--ease-out)}
         .route-status-banner .banner-icon{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -110,7 +104,6 @@
         .route-status-banner .banner-text{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
         .route-status-banner .banner-title{font-size:12px;font-weight:800;color:var(--white);text-transform:uppercase;letter-spacing:0.5px}
         .route-status-banner .banner-subtitle{font-size:11px;color:var(--gray-text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
         .ride-actions-float{position:absolute;bottom:25px;left:0;right:0;z-index:1000;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:0 18px;pointer-events:none}
         .action-btn{pointer-events:auto;padding:14px 20px;border-radius:var(--border-radius-full);border:none;font-weight:700;font-size:14px;box-shadow:var(--shadow-lg);cursor:pointer;transition:all 0.2s var(--ease-bounce);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:1px solid rgba(255,255,255,0.15)}
         .action-btn:active{transform:scale(0.94)}
@@ -128,7 +121,7 @@
         .maneuver-arrow{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:4px solid white;border-radius:var(--border-radius-full);box-shadow:0 8px 24px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;color:white;font-size:26px;position:relative;animation:maneuverPulse 1.5s infinite}
         .maneuver-arrow::before{content:'';position:absolute;inset:-12px;border-radius:var(--border-radius-full);background:rgba(59,130,246,0.3);animation:pulseMarker 1.5s infinite}
         @keyframes maneuverPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-        .bottom-nav{background:rgba(20,22,28,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px)) 8px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 30px rgba(0,0,0,0.5);position:relative;z-index:1000;gap:4px}
+        .bottom-nav{background:rgba(20,22,28,0.92);backdrop-filter:blur(20px);padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px)) 8px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 30px rgba(0,0,0,0.5);position:relative;z-index:1000;gap:4px}
         .bottom-nav.nav-hidden{display:none !important;}
         #view-viajes.navigation-active{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;height:100dvh !important;z-index:2000 !important;display:block !important;overflow:hidden !important;padding:0 !important;margin:0 !important;}
         #view-viajes.navigation-active #map{position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;}
@@ -137,7 +130,6 @@
         #view-viajes.navigation-active .route-overview-btn{top:calc(68px + env(safe-area-inset-top,0px));right:12px;z-index:2100;}
         #view-viajes.navigation-active .route-status-banner{top:calc(68px + 96px + env(safe-area-inset-top,0px));left:12px;right:12px;width:auto;max-width:none;transform:none;z-index:2100;}
         #view-viajes.navigation-active .ride-actions-float{z-index:2100;bottom:calc(18px + env(safe-area-inset-bottom,0px));}
-        #view-viajes.navigation-active .mapboxgl-ctrl-bottom-left,#view-viajes.navigation-active .mapboxgl-ctrl-bottom-right{display:none !important;}
         .driver-arrow{will-change:transform;transform-origin:center center;}
         .nav-item{color:var(--gray-text);display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:600;gap:4px;transition:all 0.3s var(--ease-smooth);cursor:pointer;flex:1;padding:8px 4px;border-radius:var(--border-radius-md);position:relative;letter-spacing:0.3px}
         .nav-icon{font-size:22px;transition:all 0.3s var(--ease-bounce);position:relative}
@@ -173,8 +165,6 @@
         .ride-btn:active{transform:scale(0.97)}
         .ride-btn.accept{background:linear-gradient(135deg,var(--primary-orange),var(--primary-orange-dark));color:white;box-shadow:0 6px 20px var(--primary-orange-glow)}
         .ride-btn.reject{background:rgba(255,255,255,0.05);color:var(--gray-light);border:1px solid rgba(255,255,255,0.08)}
-
-        /* ═══ MODAL DE VISTA PREVIA DE RUTA (2D) ═══ */
         .ride-card-preview{max-height:92vh;padding-bottom:20px}
         .ride-timer{display:flex;align-items:center;gap:6px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;animation:pulseTimer 1s ease-in-out infinite}
         @keyframes pulseTimer{0%,100%{opacity:1}50%{opacity:0.7}}
@@ -196,7 +186,6 @@
         .ride-info-value-mini{font-size:13px;font-weight:600;color:var(--white);line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
         .ride-hint{text-align:center;font-size:10px;color:var(--gray-text);padding:8px;display:flex;align-items:center;justify-content:center;gap:6px}
         .ride-hint i{color:var(--primary-orange)}
-
         .wallet-card-premium{background:linear-gradient(135deg,#ff7a00 0%,#ff4500 50%,#cc2900 100%);border-radius:var(--border-radius-lg);padding:24px;margin-bottom:22px;position:relative;overflow:hidden;box-shadow:0 10px 30px var(--primary-orange-glow);border:1px solid rgba(255,255,255,0.15)}
         .wallet-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;position:relative;z-index:2}
         .wallet-brand{font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:1px;text-transform:uppercase}
@@ -549,7 +538,6 @@
                 <div class="map-back-btn" onclick="switchTab('inicio', document.querySelector('.nav-item:nth-child(1)'))"><i class="fas fa-arrow-left"></i></div>
                 <div class="map-status-pill"><span class="pulse-dot"></span><span id="mapStatusText">En línea</span></div>
             </div>
-
             <div id="navigation-panel" class="navigation-panel">
                 <div class="nav-instruction"><i class="fas fa-arrow-up" id="nav-icon"></i></div>
                 <div class="nav-details">
@@ -557,21 +545,16 @@
                     <div class="nav-text" id="nav-text">Sigue la ruta</div>
                 </div>
             </div>
-
             <div id="routeOverviewBtn" class="route-overview-btn" onclick="showFullRoute()" title="Ver ruta completa">
                 <i class="fas fa-expand-arrows-alt"></i>
             </div>
-
             <div id="routeStatusBanner" class="route-status-banner">
-                <div class="banner-icon blue" id="routeStatusIcon">
-                    <i class="fas fa-route"></i>
-                </div>
+                <div class="banner-icon blue" id="routeStatusIcon"><i class="fas fa-route"></i></div>
                 <div class="banner-text">
                     <div class="banner-title" id="routeStatusTitle">Ruta activa</div>
                     <div class="banner-subtitle" id="routeStatusSubtitle">Siguiendo la ruta indicada</div>
                 </div>
             </div>
-
             <div class="ride-actions-float" id="rideActionsFloat">
                 <button class="action-btn arrived hidden" id="arrivedBtn" onclick="markArrived()"><i class="fas fa-flag"></i> He llegado</button>
                 <button class="action-btn pickup hidden" id="pickupBtn" onclick="startRideWithPassenger()"><i class="fas fa-user-check"></i> Iniciar viaje</button>
@@ -656,13 +639,9 @@
         </nav>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════════
-         MODAL DE SOLICITUD DE VIAJE (CON VISTA PREVIA 2D)
-    ═══════════════════════════════════════════════════════════════ -->
     <div class="ride-modal" id="rideModal">
         <div class="ride-card ride-card-preview">
             <div class="drag-handle"></div>
-
             <div class="ride-header">
                 <div class="ride-title-section">
                     <div class="ride-icon-box"><i class="fas fa-bell"></i></div>
@@ -676,7 +655,6 @@
                     <span id="rideTimerText">30s</span>
                 </div>
             </div>
-
             <div class="ride-preview-map-wrapper">
                 <div id="ridePreviewMap" class="ride-preview-map"></div>
                 <div class="ride-preview-badge">
@@ -684,7 +662,6 @@
                     <span>Vista previa · 2D</span>
                 </div>
             </div>
-
             <div class="ride-quick-stats">
                 <div class="quick-stat">
                     <i class="fas fa-route" style="color:#06b6d4"></i>
@@ -708,7 +685,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="ride-info-compact">
                 <div class="ride-info-line">
                     <div class="ride-dot-pickup"></div>
@@ -725,7 +701,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="ride-actions">
                 <button class="ride-btn accept" onclick="acceptRide()">
                     <i class="fas fa-check"></i> Aceptar viaje
@@ -734,7 +709,6 @@
                     <i class="fas fa-times"></i> Rechazar
                 </button>
             </div>
-
             <div class="ride-hint">
                 <i class="fas fa-info-circle"></i>
                 La ruta se mostrará en 3D cuando aceptes
@@ -743,7 +717,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
+    
+        <script>
         const PushNotifications = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) || null;
 
         const NAV_ARROW_Y_FRACTION = 0.72;
@@ -840,6 +815,106 @@
             const y = Math.sin(dLng)*Math.cos(eLat*Math.PI/180);
             const x = Math.cos(sLat*Math.PI/180)*Math.sin(eLat*Math.PI/180)-Math.sin(sLat*Math.PI/180)*Math.cos(eLat*Math.PI/180)*Math.cos(dLng);
             return (Math.atan2(y,x)*180/Math.PI+360)%360;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  🔔 BANNER DE PERMISOS + REINTENTO AUTOMÁTICO
+        // ═══════════════════════════════════════════════════════════════
+        async function checkAndShowPermissionBanner() {
+            if (!PushNotifications) return;
+            try {
+                const result = await PushNotifications.checkPermissions();
+                dlog('📋 Permiso actual: ' + result.receive, 'info');
+                if (result.receive === 'granted') {
+                    hidePermissionBanner();
+                    return;
+                }
+                showPermissionBanner();
+            } catch (e) {
+                dlog('Error verificando permisos: ' + e.message, 'warning');
+            }
+        }
+
+        function showPermissionBanner() {
+            let banner = document.getElementById('permissionBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'permissionBanner';
+                banner.innerHTML = `
+                    <div style="position:fixed;top:70px;left:12px;right:12px;z-index:9990;
+                                background:linear-gradient(135deg,#f59e0b,#d97706);
+                                border-radius:14px;padding:12px 16px;
+                                box-shadow:0 8px 24px rgba(245,158,11,0.4);
+                                display:flex;align-items:center;gap:12px;
+                                border:1px solid rgba(255,255,255,0.2);
+                                animation:slideDownBanner 0.4s ease-out;">
+                        <div style="width:38px;height:38px;border-radius:12px;
+                                    background:rgba(255,255,255,0.2);
+                                    display:flex;align-items:center;justify-content:center;
+                                    flex-shrink:0;font-size:20px;">🔕</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:2px;">
+                                Notificaciones desactivadas
+                            </div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.9);line-height:1.3;">
+                                Actívalas para no perder viajes
+                            </div>
+                        </div>
+                        <button onclick="requestNotificationPermission()"
+                                style="padding:8px 14px;border-radius:10px;
+                                       background:#fff;color:#d97706;border:none;
+                                       font-size:11px;font-weight:800;cursor:pointer;
+                                       flex-shrink:0;">
+                            ACTIVAR
+                        </button>
+                    </div>
+                    <style>
+                        @keyframes slideDownBanner {
+                            from { opacity:0; transform:translateY(-20px); }
+                            to { opacity:1; transform:translateY(0); }
+                        }
+                    </style>
+                `;
+                document.body.appendChild(banner);
+                dlog('⚠️ Banner de permiso mostrado', 'warning');
+            } else {
+                banner.style.display = 'block';
+            }
+        }
+
+        function hidePermissionBanner() {
+            const banner = document.getElementById('permissionBanner');
+            if (banner) banner.style.display = 'none';
+        }
+
+        async function requestNotificationPermission() {
+            if (!PushNotifications) return;
+            try {
+                const result = await PushNotifications.requestPermissions();
+                dlog('📋 Resultado solicitud: ' + result.receive, 'info');
+                if (result.receive === 'granted') {
+                    dlog('✅ Permiso concedido', 'success');
+                    hidePermissionBanner();
+                    await PushNotifications.register();
+                    showToast('¡Notificaciones activadas!', 'check-circle');
+                } else {
+                    dlog('❌ Permiso sigue denegado', 'warning');
+                    const shouldOpen = confirm(
+                        '🔔 Necesitas activar las notificaciones manualmente.\n\n' +
+                        'Ve a: Ajustes → Aplicaciones → Moto Móvil Conductor → Notificaciones\n\n' +
+                        '¿Quieres intentar abrir los ajustes?'
+                    );
+                    if (shouldOpen) {
+                        try {
+                            window.location.href = 'intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;S.package=com.motomovil.conductor;end';
+                        } catch (e) {
+                            alert('Ajustes → Aplicaciones → Moto Móvil Conductor → Notificaciones');
+                        }
+                    }
+                }
+            } catch (e) {
+                dlog('❌ Error al pedir permiso: ' + e.message, 'error');
+            }
         }
 
         function setNavigationMode(enabled) {
@@ -1054,7 +1129,7 @@
         window.currentGpsAccuracy = 0;
 
         // ═══════════════════════════════════════════════════════════════
-        //  🗺️ VISTA PREVIA 2D + COUNTDOWN + BANNER
+        //  🗺️ VISTA PREVIA 2D + COUNTDOWN
         // ═══════════════════════════════════════════════════════════════
         let previewMap = null;
         let previewRouteLayer = null;
@@ -1071,8 +1146,7 @@
                     style: 'mapbox://styles/mapbox/streets-v12',
                     center: [-63.1821, -17.7833],
                     zoom: 12,
-                    pitch: 0,
-                    bearing: 0,
+                    pitch: 0, bearing: 0,
                     interactive: false,
                     attributionControl: false
                 });
@@ -1327,10 +1401,19 @@
                 dlog('📢 Canal ride_requests creado', 'success');
             } catch (e) { dlog('⚠️ Error creando canal: ' + e.message, 'warning'); }
             try {
-                let perm = await PushNotifications.requestPermissions();
-                if (perm.receive !== 'granted') { dlog('❌ Permiso denegado', 'warning'); return; }
+                let check = await PushNotifications.checkPermissions();
+                dlog('📋 Permiso actual: ' + check.receive, 'info');
+                if (check.receive !== 'granted') {
+                    let perm = await PushNotifications.requestPermissions();
+                    dlog('📋 Después de solicitar: ' + perm.receive, 'info');
+                    if (perm.receive !== 'granted') {
+                        dlog('❌ Permiso denegado — se reintentará al volver a la app', 'warning');
+                        showPermissionBanner();
+                        return;
+                    }
+                }
                 await PushNotifications.register();
-            } catch (e) { dlog('❌ Error registro push: ' + e.message, 'error'); return; }
+            } catch (e) { dlog('❌ Error en registro push: ' + e.message, 'error'); return; }
             PushNotifications.addListener('registration', async (token) => {
                 dlog('📱 Token FCM: ' + token.value.substring(0, 25) + '...', 'success');
                 if (currentDriverId) {
@@ -1500,6 +1583,7 @@
                     setupChatSubscription();
                     routeUserBasedOnProfile();
                     await setupPushNotifications();
+                    setTimeout(checkAndShowPermissionBanner, 1500);
                 } else {
                     document.getElementById('view-login').classList.add('active');
                 }
@@ -1712,14 +1796,7 @@
                     setTimeout(() => finish(), 15000);
                 });
                 try { map.addControl(new mapboxgl.NavigationControl(), 'middle-right'); } catch (e) {}
-
-                // 🎯 DESHABILITAR ZOOM MANUAL
-                try {
-                    map.scrollZoom.disable();
-                    map.doubleClickZoom.disable();
-                    map.touchZoomRotate.disableRotation();
-                } catch (e) {}
-
+                try { map.scrollZoom.disable(); map.doubleClickZoom.disable(); map.touchZoomRotate.disableRotation(); } catch (e) {}
                 const handleUserInteraction = () => {
                     if (!navigationCameraLocked) { userInteracting = true; lastInteractionTime = Date.now(); return; }
                     userInteracting = true;
@@ -2564,12 +2641,13 @@
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
                 updateGreeting();
                 try { if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') notificationAudioCtx.resume(); } catch (e) {}
+                setTimeout(checkAndShowPermissionBanner, 500);
             }
         });
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.6 — Preview 2D + Navegación 3D + Zoom bloqueado', 'success');
+        dlog('App iniciada. v6.7 — Banner de permisos + Reintento automático + Preview 2D', 'success');
     </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-name: Build Driver APK
+name: Build Driver AAB - Google Play
 
 on:
   push:
@@ -7,172 +7,363 @@ on:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build Driver AAB
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout codigo
+
+      # ============================================================
+      # 1. CHECKOUT
+      # ============================================================
+      - name: 📥 Checkout código
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      # ============================================================
+      # 2. NODE.JS
+      # ============================================================
+      - name: 🟢 Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Setup Java 21
+      # ============================================================
+      # 3. JAVA 17
+      # ============================================================
+      - name: ☕ Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
-      - name: Setup Android SDK
+      # ============================================================
+      # 4. ANDROID SDK
+      # ============================================================
+      - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools'
-          accept-android-sdk-licenses: true
+          accept-android-sdk-licenses: false
 
-      - name: Instalar dependencias npm
-        run: npm install --legacy-peer-deps
+      # ============================================================
+      # 5. LICENCIAS
+      # ============================================================
+      - name: ✅ Aceptar licencias del SDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          echo "✅ Licencias aceptadas"
 
-      - name: Anadir plataforma Android
-        run: npx cap add android
+      # ============================================================
+      # 6. INSTALAR DEPENDENCIAS
+      # ============================================================
+      - name: 📦 Instalar dependencias npm
+        run: |
+          npm install --legacy-peer-deps
 
-      - name: Configurar compatibilidad Android 6+ (target Android 9)
+      # ============================================================
+      # 7. VERIFICAR www/
+      # ============================================================
+      - name: 🔍 Verificar carpeta www
+        run: |
+          if [ ! -f "www/index.html" ]; then
+            echo "❌ ERROR: No existe www/index.html"
+            exit 1
+          fi
+          echo "✅ www/index.html encontrado"
+          ls -la www/ | head -10
+
+      # ============================================================
+      # 8. AÑADIR PLATAFORMA ANDROID
+      # ============================================================
+      - name: 📱 Añadir plataforma Android
+        run: |
+          npx cap add android
+
+      # ============================================================
+      # 9. VERSION CODE
+      # ============================================================
+      - name: 🔢 Configurar versionCode y versionName
+        run: |
+          GRADLE_FILE="android/app/build.gradle"
+          sed -i 's/versionCode [0-9]*/versionCode 1/' "$GRADLE_FILE"
+          sed -i 's/versionName "[^"]*"/versionName "1.0"/' "$GRADLE_FILE"
+          echo "=== Versión configurada ==="
+          grep -E "versionCode|versionName" "$GRADLE_FILE"
+
+      # ============================================================
+      # 10. SDK VERSION
+      # minSdk 23     = Android 6.0+
+      # targetSdk 36  = Android 16 (REQUERIDO por Play)
+      # compileSdk 36 = Android 16 SDK
+      # ============================================================
+      - name: 🔧 Configurar versiones del SDK
         run: |
           GRADLE_FILE="android/variables.gradle"
-          echo "=== ANTES ==="
-          cat $GRADLE_FILE
+          sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 23/' "$GRADLE_FILE"
+          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 36/' "$GRADLE_FILE"
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 36/' "$GRADLE_FILE"
+          echo "=== variables.gradle final ==="
+          cat "$GRADLE_FILE"
 
-          # minSdkVersion 23 = Android 6.0 Marshmallow (instalable en Android 6+)
-          sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 23/' $GRADLE_FILE
-          # targetSdkVersion 28 = Android 9.0 Pie (comportamiento nativo en Android 9)
-          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 28/' $GRADLE_FILE
-          # compileSdkVersion 34 = requerido por Capacitor (Java 9+) — NO bajar
-          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 34/' $GRADLE_FILE
-
-          echo "=== DESPUES ==="
-          cat $GRADLE_FILE
-
-      - name: Inyectar google-services.json desde secreto
+      # ============================================================
+      # 11. GOOGLE SERVICES
+      # ============================================================
+      - name: 🔥 Inyectar google-services.json
         run: |
           mkdir -p android/app
-          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-          echo "google-services.json inyectado:"
-          head -c 200 android/app/google-services.json
+          echo '${{ secrets.GOOGLE_SERVICES_JSON_CONDUCTOR }}' > android/app/google-services.json
+          if [ -s android/app/google-services.json ]; then
+            echo "✅ google-services.json creado."
+          else
+            echo "❌ ERROR: google-services.json vacío."
+            exit 1
+          fi
 
-      - name: Verificar assets
-        run: |
-          echo "=== Contenido de assets/ ==="
-          ls -la assets/ || echo "No existe carpeta assets/"
-          echo ""
-          echo "=== Verificando archivos requeridos ==="
-          for f in icon-only.png icon-foreground.png icon-background.png; do
-            if [ -f "assets/$f" ]; then
-              echo "OK: assets/$f ($(du -h assets/$f | cut -f1))"
-            else
-              echo "FALTA: assets/$f  <-- NECESARIO para @capacitor/assets"
-            fi
-          done
-          echo ""
-          echo "=== Verificando iconos de notificacion ==="
-          for f in ic_stat_ride.png ic_notif_large.png; do
-            if [ -f "assets/$f" ]; then
-              echo "OK: assets/$f ($(du -h assets/$f | cut -f1))"
-            else
-              echo "FALTA: assets/$f  <-- NECESARIO para notificaciones"
-            fi
-          done
-
-      - name: Generar iconos con @capacitor/assets
+      # ============================================================
+      # 12. ICONOS
+      # ============================================================
+      - name: 🎨 Generar iconos Android
         run: |
           npx --yes @capacitor/assets generate \
             --android \
             --iconBackgroundColor '#ff7a00' \
             --iconBackgroundColorDark '#0a0a0b' \
             --splashBackgroundColor '#0a0a0b' \
-            --splashBackgroundColorDark '#000000'
-          echo "Iconos generados por @capacitor/assets"
+            --splashBackgroundColorDark '#000000' \
+            || echo "⚠️ Advertencia durante iconos."
 
-      - name: Instalar ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
-
-      - name: Copiar iconos de notificacion
+      # ============================================================
+      # 13. IMAGEMAGICK
+      # ============================================================
+      - name: 🖼️ Instalar ImageMagick
         run: |
-          RES=android/app/src/main/res
-          mkdir -p $RES/drawable-mdpi $RES/drawable-hdpi $RES/drawable-xhdpi $RES/drawable-xxhdpi $RES/drawable-xxxhdpi
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      # ============================================================
+      # 14. ICONOS DE NOTIFICACIÓN
+      # ============================================================
+      - name: 🔔 Copiar iconos de notificación
+        run: |
+          RES="android/app/src/main/res"
+          mkdir -p "$RES/drawable-mdpi" "$RES/drawable-hdpi" "$RES/drawable-xhdpi" "$RES/drawable-xxhdpi" "$RES/drawable-xxxhdpi"
 
           if [ -f "assets/ic_stat_ride.png" ]; then
-            convert assets/ic_stat_ride.png -resize 24x24  $RES/drawable-mdpi/ic_stat_ride.png
-            convert assets/ic_stat_ride.png -resize 36x36  $RES/drawable-hdpi/ic_stat_ride.png
-            convert assets/ic_stat_ride.png -resize 48x48  $RES/drawable-xhdpi/ic_stat_ride.png
-            convert assets/ic_stat_ride.png -resize 72x72  $RES/drawable-xxhdpi/ic_stat_ride.png
-            convert assets/ic_stat_ride.png -resize 96x96  $RES/drawable-xxxhdpi/ic_stat_ride.png
-            echo "OK: icono de notificacion pequeno copiado"
+            convert assets/ic_stat_ride.png -resize 24x24   "$RES/drawable-mdpi/ic_stat_ride.png"
+            convert assets/ic_stat_ride.png -resize 36x36   "$RES/drawable-hdpi/ic_stat_ride.png"
+            convert assets/ic_stat_ride.png -resize 48x48   "$RES/drawable-xhdpi/ic_stat_ride.png"
+            convert assets/ic_stat_ride.png -resize 72x72   "$RES/drawable-xxhdpi/ic_stat_ride.png"
+            convert assets/ic_stat_ride.png -resize 96x96   "$RES/drawable-xxxhdpi/ic_stat_ride.png"
+            echo "✅ Icono pequeño instalado."
           else
-            echo "AVISO: no existe assets/ic_stat_ride.png"
+            echo "⚠️ No existe assets/ic_stat_ride.png"
           fi
 
           if [ -f "assets/ic_notif_large.png" ]; then
-            convert assets/ic_notif_large.png -resize 128x128 $RES/drawable-mdpi/ic_notif_large.png
-            convert assets/ic_notif_large.png -resize 192x192 $RES/drawable-hdpi/ic_notif_large.png
-            convert assets/ic_notif_large.png -resize 256x256 $RES/drawable-xhdpi/ic_notif_large.png
-            convert assets/ic_notif_large.png -resize 384x384 $RES/drawable-xxhdpi/ic_notif_large.png
-            convert assets/ic_notif_large.png -resize 512x512 $RES/drawable-xxxhdpi/ic_notif_large.png
-            echo "OK: icono de notificacion grande copiado"
+            convert assets/ic_notif_large.png -resize 128x128 "$RES/drawable-mdpi/ic_notif_large.png"
+            convert assets/ic_notif_large.png -resize 192x192 "$RES/drawable-hdpi/ic_notif_large.png"
+            convert assets/ic_notif_large.png -resize 256x256 "$RES/drawable-xhdpi/ic_notif_large.png"
+            convert assets/ic_notif_large.png -resize 384x384 "$RES/drawable-xxhdpi/ic_notif_large.png"
+            convert assets/ic_notif_large.png -resize 512x512 "$RES/drawable-xxxhdpi/ic_notif_large.png"
+            echo "✅ Icono grande instalado."
           else
-            echo "AVISO: no existe assets/ic_notif_large.png"
+            echo "⚠️ No existe assets/ic_notif_large.png"
           fi
 
-      - name: Configurar AndroidManifest con permisos
+      # ============================================================
+      # 15. PERMISOS
+      # ============================================================
+      - name: 🔐 Configurar permisos Android
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i\    <uses-feature android:name="android.hardware.location.gps" android:required="false" />' $MANIFEST
-          sed -i '/<application/i\    <uses-feature android:name="android.hardware.camera" android:required="false" />' $MANIFEST
-          echo "Permisos anadidos:"
-          grep "uses-permission\|uses-feature" $MANIFEST
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+          sed -i '/android.permission.INTERNET/d' "$MANIFEST"
+          sed -i '/android.permission.ACCESS_NETWORK_STATE/d' "$MANIFEST"
+          sed -i '/android.permission.ACCESS_FINE_LOCATION/d' "$MANIFEST"
+          sed -i '/android.permission.ACCESS_COARSE_LOCATION/d' "$MANIFEST"
+          sed -i '/android.permission.WAKE_LOCK/d' "$MANIFEST"
+          sed -i '/android.permission.FOREGROUND_SERVICE/d' "$MANIFEST"
+          sed -i '/android.permission.VIBRATE/d' "$MANIFEST"
+          sed -i '/android.permission.CAMERA/d' "$MANIFEST"
+          sed -i '/android.permission.POST_NOTIFICATIONS/d' "$MANIFEST"
+          sed -i '/android.permission.READ_EXTERNAL_STORAGE/d' "$MANIFEST"
+          sed -i '/android.permission.WRITE_EXTERNAL_STORAGE/d' "$MANIFEST"
+          sed -i '/android.hardware.location.gps/d' "$MANIFEST"
+          sed -i '/android.hardware.camera/d' "$MANIFEST"
 
-      - name: Compilar APK
+          sed -i '/<application/i\
+              <uses-permission android:name="android.permission.INTERNET" />\
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\
+              <uses-permission android:name="android.permission.WAKE_LOCK" />\
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\
+              <uses-permission android:name="android.permission.VIBRATE" />\
+              <uses-permission android:name="android.permission.CAMERA" />\
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\
+              <uses-feature android:name="android.hardware.location.gps" android:required="false" />\
+              <uses-feature android:name="android.hardware.camera" android:required="false" />\
+          ' "$MANIFEST"
+
+          echo "=== Permisos aplicados ==="
+          grep "uses-permission\|uses-feature" "$MANIFEST" || true
+
+      # ============================================================
+      # 16. SYNC CAPACITOR
+      # ============================================================
+      - name: 🔄 Sincronizar Capacitor
+        run: |
+          npx cap sync android
+
+      # ============================================================
+      # 17. DECODIFICAR KEYSTORE
+      # ============================================================
+      - name: 🔑 Decodificar keystore
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "❌ ERROR: KEYSTORE_BASE64 no configurado."
+            exit 1
+          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          echo "✅ Keystore decodificado"
+          ls -lh android/app/release.keystore
+
+      # ============================================================
+      # 18. CREAR KEYSTORE.PROPERTIES
+      # ============================================================
+      - name: 📝 Crear keystore.properties
+        run: |
+          cat > android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+          echo "✅ keystore.properties creado"
+
+      # ============================================================
+      # 19. CONFIGURAR SIGNING CONFIG
+      # ============================================================
+      - name: 📝 Configurar signingConfig en build.gradle
+        run: |
+          GRADLE_FILE="android/app/build.gradle"
+
+          echo "=== build.gradle ANTES ==="
+          cat "$GRADLE_FILE"
+
+          python3 << 'PYEOF'
+          import re
+
+          gradle_file = "android/app/build.gradle"
+          with open(gradle_file, "r") as f:
+              content = f.read()
+
+          keystore_block = '''
+          def keystorePropertiesFile = rootProject.file("keystore.properties")
+          def keystoreProperties = new Properties()
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+          }
+
+          '''
+          content = re.sub(r'\nandroid\s*\{', '\n' + keystore_block + 'android {', content, count=1)
+
+          content = re.sub(r'signingConfigs\s*\{[^}]*\{[^}]*\}[^}]*\}', '', content, flags=re.DOTALL)
+
+          signing_configs = '''
+              signingConfigs {
+                  release {
+                      if (keystorePropertiesFile.exists()) {
+                          storeFile file(keystoreProperties["storeFile"])
+                          storePassword keystoreProperties["storePassword"]
+                          keyAlias keystoreProperties["keyAlias"]
+                          keyPassword keystoreProperties["keyPassword"]
+                      }
+                  }
+              }
+          '''
+          content = re.sub(r'(android\s*\{)', r'\1' + signing_configs, content, count=1)
+
+          content = re.sub(
+              r'(buildTypes\s*\{[\s\S]*?release\s*\{)',
+              r'\1\n            signingConfig signingConfigs.release',
+              content,
+              count=1
+          )
+
+          with open(gradle_file, "w") as f:
+              f.write(content)
+
+          print("✅ build.gradle modificado")
+          PYEOF
+
+          echo ""
+          echo "=== build.gradle DESPUÉS ==="
+          cat "$GRADLE_FILE"
+
+      # ============================================================
+      # 20. VERIFICAR CONFIGURACIÓN
+      # ============================================================
+      - name: 🧪 Verificar configuración
+        run: |
+          echo "=== variables.gradle ==="
+          cat android/variables.gradle
+          echo ""
+          echo "=== signingConfigs ==="
+          grep -A 10 "signingConfigs" android/app/build.gradle || true
+          echo ""
+          echo "=== versionCode / versionName ==="
+          grep -E "versionCode|versionName" android/app/build.gradle || true
+
+      # ============================================================
+      # 21. COMPILAR AAB
+      # ============================================================
+      - name: 🔨 Compilar App Bundle (AAB)
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew bundleRelease --no-daemon --stacktrace
 
-      - name: Verificar versiones del APK compilado
+      # ============================================================
+      # 22. VERIFICAR AAB
+      # ============================================================
+      - name: 🔎 Verificar AAB
         run: |
-          APK=android/app/build/outputs/apk/debug/app-debug.apk
-          if [ -f "$APK" ]; then
-            echo "=== APK generado ==="
-            ls -lh $APK
-            echo ""
-            echo "=== Verificando SDK versions del APK ==="
-            AAPT=$(find $ANDROID_HOME/build-tools -name aapt -type f | head -1)
-            if [ -n "$AAPT" ]; then
-              $AAPT dump badging $APK | grep -E "sdkVersion|targetSdkVersion|package:" || true
-            else
-              echo "aapt no encontrado, saltando verificacion"
-            fi
-          else
-            echo "ERROR: no se genero el APK"
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          if [ ! -f "$AAB" ]; then
+            echo "❌ ERROR: No se generó el AAB."
+            find android/app/build/outputs -type f || true
             exit 1
           fi
+          echo "✅ AAB generado:"
+          ls -lh "$AAB"
 
-      - name: Subir APK
+      # ============================================================
+      # 23. SUBIR AAB
+      # ============================================================
+      - name: 📤 Subir AAB
         uses: actions/upload-artifact@v4
         with:
-          name: moto-movil-conductor-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: moto-movil-conductor-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      # ============================================================
+      # 24. RESUMEN
+      # ============================================================
+      - name: 🎉 Resumen
+        run: |
+          echo "## ✅ AAB del conductor generado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuración" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔢 versionCode: **1**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏷️ versionName: **1.0**" >> $GITHUB_STEP_SUMMARY
+          echo "- 📱 Package: **com.motomovil.conductor**" >> $GITHUB_STEP_SUMMARY
+          echo "- 📱 minSdk: API 23 (Android 6.0+)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📱 targetSdk: API 36 (Android 16)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🛠️ compileSdk: API 36" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Capacitor: 6.2.0" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 Firmado con keystore del conductor" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Descarga el AAB en **Artifacts**." >> $GITHUB_STEP_SUMMARY

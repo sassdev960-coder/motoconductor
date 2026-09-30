@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V6.6 - COMPANION TYPE + ZOOM OUT EXPLORATION + AUTO RECENTER -->
+<!-- ROUTE STREET-FOLLOWING V6.8 - HYBRID CAMERA + SMOOTH REROUTE + SOFT SNAP -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -103,7 +103,6 @@
         .action-btn.redirect{background:linear-gradient(135deg,var(--purple),#7c3aed);color:white}
         .action-btn.hidden{display:none}
 
-        /* 🆕 BOTÓN RECENTRAR (aparece en modo exploración) */
         .recenter-btn{
             position:absolute;
             bottom:calc(130px + env(safe-area-inset-bottom,0px));
@@ -136,9 +135,15 @@
         }
 
         .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{display:none}
-        .driver-arrow{width:48px;height:48px;background:linear-gradient(135deg,#4285F4,#2563eb);border:3px solid white;border-radius:var(--border-radius-full);box-shadow:0 4px 15px rgba(66,133,244,0.6);display:flex;align-items:center;justify-content:center;color:white;font-size:22px;position:relative;transition:transform 0.15s linear}
-        .driver-arrow::before{content:'';position:absolute;inset:-8px;border-radius:var(--border-radius-full);background:rgba(66,133,244,0.2);animation:pulseMarker 2s infinite}
-        @keyframes pulseMarker{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0}}
+        .driver-arrow{width:78px;height:92px;position:relative;display:flex;align-items:center;justify-content:center;transform-origin:center center;pointer-events:none;will-change:transform;filter:drop-shadow(0 8px 16px rgba(0,0,0,.38))}
+        .driver-arrow .driver-orientation{position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:20px solid #35a7ff;filter:drop-shadow(0 0 8px rgba(53,167,255,.95));z-index:5}
+        .driver-arrow .driver-orientation::after{content:'';position:absolute;left:-5px;top:5px;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:10px solid #fff}
+        .driver-arrow .driver-ring{position:absolute;width:66px;height:66px;left:6px;top:22px;border-radius:50%;background:radial-gradient(circle at 50% 45%,rgba(35,137,255,.36),rgba(14,69,160,.2) 55%,rgba(0,0,0,.08) 72%);border:2px solid rgba(74,182,255,.95);box-shadow:0 0 12px rgba(36,148,255,.95),0 0 30px rgba(36,148,255,.5),inset 0 0 18px rgba(60,160,255,.22);z-index:1}
+        .driver-arrow .driver-ring::before{content:'';position:absolute;inset:-9px;border-radius:50%;border:1px solid rgba(56,168,255,.32);animation:pulseMarker 2.2s ease-out infinite}
+        .driver-arrow .driver-ring::after{content:'';position:absolute;left:50%;top:-17px;width:2px;height:22px;transform:translateX(-50%);background:linear-gradient(to top,rgba(58,169,255,.7),rgba(58,169,255,0));box-shadow:0 0 8px #35a7ff}
+        .driver-arrow .driver-bike{position:absolute;left:50%;top:31px;transform:translateX(-50%);width:37px;height:53px;z-index:3;filter:drop-shadow(0 5px 4px rgba(0,0,0,.5))}
+        .driver-arrow .driver-bike svg{width:100%;height:100%;display:block;overflow:visible}
+        @keyframes pulseMarker{0%{transform:scale(.82);opacity:.85}70%{transform:scale(1.2);opacity:0}100%{transform:scale(1.2);opacity:0}}
         .maneuver-arrow{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:4px solid white;border-radius:var(--border-radius-full);box-shadow:0 8px 24px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;color:white;font-size:26px;position:relative;animation:maneuverPulse 1.5s infinite}
         .maneuver-arrow::before{content:'';position:absolute;inset:-12px;border-radius:var(--border-radius-full);background:rgba(59,130,246,0.3);animation:pulseMarker 1.5s infinite}
         @keyframes maneuverPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
@@ -703,10 +708,16 @@
         const CAMERA_EASE_MS = 130;
         const CAMERA_HEADING_DEADZONE = 7;
         const CAMERA_HEADING_SMOOTHING = 0.16;
+        const CAMERA_HEADING_SMOOTHING_MAX = 0.08;
         let lastCameraUpdate = 0;
         let navigationCameraLocked = false;
         let navigationResumeTimer = null;
         let navigationCameraBearing = null;
+
+        const MAP_STYLE_DAY = 'mapbox://styles/mapbox/streets-v12';
+        const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/navigation-night-v1';
+        let currentMapTheme = null;
+        let mapThemeTimer = null;
 
         const BROWSING_TIMEOUT_MS = 8000;
         const ZOOM_OUT_THRESHOLD = 15.3;
@@ -951,9 +962,9 @@
                 let d = Math.abs(a - b) % 360;
                 return d > 180 ? 360 - d : d;
             };
-            let movementHeading = null;
-            if (isCurrentlyMoving && smoothedBearing !== null) movementHeading = smoothedBearing;
-            else if (typeof compassHeading === 'number' && compassAvailable) movementHeading = compassHeading;
+            let movementHeadingLocal = null;
+            if (isCurrentlyMoving && smoothedBearing !== null) movementHeadingLocal = smoothedBearing;
+            else if (typeof compassHeading === 'number' && compassAvailable) movementHeadingLocal = compassHeading;
 
             for (let i = startIdx; i <= endIdx; i++) {
                 const a = coords[i], b = coords[i + 1];
@@ -961,9 +972,9 @@
                 const proj = projectPointOnSegment(driverLat, driverLng, a[1], a[0], b[1], b[0]);
                 const distance = getDistanceFromLatLonInMeters(driverLat, driverLng, proj[0], proj[1]);
                 let score = distance;
-                if (movementHeading !== null) {
+                if (movementHeadingLocal !== null) {
                     const roadHeading = getHeadingForSegment(a, b);
-                    const diff = angleDiff(movementHeading, roadHeading);
+                    const diff = angleDiff(movementHeadingLocal, roadHeading);
                     const directionalDiff = Math.min(diff, Math.abs(180 - diff));
                     if (directionalDiff > 75) score += 35;
                     else if (directionalDiff > 55) score += 12;
@@ -1078,9 +1089,6 @@
             } catch (e) {}
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        //  🆕 HELPER: Obtener texto del acompañante
-        // ═══════════════════════════════════════════════════════════════
         function getCompanionText(companionType) {
             if (!companionType || companionType === 'none') return null;
             const map = {
@@ -1151,18 +1159,10 @@
             return d;
         }
 
-        // Dirección de la calle/ruta que tenemos por delante. Esto permite que,
-        // cuando el conductor está sobre la línea, la ruta quede recta hacia adelante
-        // sin reaccionar a pequeños movimientos laterales del GPS.
         function getRouteAheadBearing() {
             const coords = window.currentRouteCoords;
             const snap = window.currentRouteSnap;
             if (!Array.isArray(coords) || coords.length < 2 || !snap || !Number.isFinite(snap.segmentIndex)) return null;
-
-            // Mientras el dispositivo está sobre la ruta, la cámara sigue la
-            // dirección del tramo de calle que realmente está debajo del indicador.
-            // No usamos un promedio lejano de varios puntos porque eso puede hacer
-            // que la cámara se anticipe a un giro o se quede apuntando a otra calle.
             const i = Math.max(0, Math.min(coords.length - 2, Math.floor(snap.segmentIndex)));
             const a = coords[i];
             const b = coords[i + 1];
@@ -1172,21 +1172,32 @@
             return calculateBearing(a[1], a[0], b[1], b[0]);
         }
 
-        // Rumbo exclusivo de la CÁMARA. La posición GPS mueve el mapa, pero
-        // el rumbo no se cambia por cada pequeño desplazamiento lateral.
-        // Primero seguimos la orientación real del teléfono (brújula), que es
-        // mucho más estable para mantener la dirección mientras se avanza.
         function getNavigationCameraBearing(immediate = false) {
-            let source = null;
+            let primary = null;
+            if (Number.isFinite(smoothedBearing)) primary = smoothedBearing;
+            else if (compassAvailable && Number.isFinite(compassHeading)) primary = compassHeading;
+            else if (Number.isFinite(movementHeading)) primary = movementHeading;
+
             const routeBearing = getRouteAheadBearing();
             const snapDistance = Number(window.currentRouteSnap?.distance);
-            // Si estamos realmente sobre la ruta, alineamos la cámara con la calle.
-            // Fuera de la línea conservamos el comportamiento anterior.
-            if (Number.isFinite(routeBearing) && Number.isFinite(snapDistance) && snapDistance <= 12) source = routeBearing;
-            else if (Number.isFinite(smoothedBearing)) source = smoothedBearing;
-            else if (compassAvailable && Number.isFinite(compassHeading)) source = compassHeading;
-            else if (Number.isFinite(movementHeading)) source = movementHeading;
-            if (!Number.isFinite(source)) return Number.isFinite(navigationCameraBearing) ? navigationCameraBearing : 0;
+
+            let source = primary;
+            if (Number.isFinite(primary) && Number.isFinite(routeBearing) && Number.isFinite(snapDistance)) {
+                const diffPrimaryRoute = Math.abs(shortestBearingDelta(primary, routeBearing));
+                let influence = 0;
+                if (snapDistance <= 5)        influence = 0.35;
+                else if (snapDistance <= 12)  influence = 0.25;
+                else if (snapDistance <= 25)  influence = 0.12;
+                if (diffPrimaryRoute < 10 && snapDistance <= 12) influence = 0.45;
+                if (diffPrimaryRoute > 45) influence = 0;
+                source = normalizeBearing360(primary + shortestBearingDelta(primary, routeBearing) * influence);
+            } else if (!Number.isFinite(primary) && Number.isFinite(routeBearing)) {
+                source = routeBearing;
+            }
+
+            if (!Number.isFinite(source)) {
+                return Number.isFinite(navigationCameraBearing) ? navigationCameraBearing : 0;
+            }
 
             source = normalizeBearing360(source);
             if (!Number.isFinite(navigationCameraBearing)) {
@@ -1199,7 +1210,7 @@
                 return navigationCameraBearing;
             }
 
-            const factor = immediate ? 1 : CAMERA_HEADING_SMOOTHING;
+            const factor = immediate ? 1 : Math.min(CAMERA_HEADING_SMOOTHING, CAMERA_HEADING_SMOOTHING_MAX);
             navigationCameraBearing = normalizeBearing360(navigationCameraBearing + delta * factor);
             return navigationCameraBearing;
         }
@@ -1252,11 +1263,7 @@
                         map.easeTo({ center: [markerCurrentPos[1], markerCurrentPos[0]], zoom, bearing, pitch: NAV_PITCH, offset: [0, 0], duration: CAMERA_EASE_MS, essential: true });
                     }
                 } else {
-                    let diff = markerTargetBearing - markerCurrentBearing;
-                    if (diff > 180) diff -= 360;
-                    if (diff < -180) diff += 360;
-                    markerCurrentBearing = (markerCurrentBearing + diff * 0.2 + 360) % 360;
-                    driverMarker.setRotation(markerCurrentBearing);
+                    driverMarker.setRotation(0);
                 }
             } catch (e) { console.warn('Error animando marcador:', e); }
             animationFrameId = requestAnimationFrame(animateMarker);
@@ -1296,7 +1303,6 @@
             if (dist > OFF_ROUTE_THRESHOLD_M) {
                 if (offRouteStartTime === null) {
                     offRouteStartTime = now;
-                    lastRouteProgressIndex = 0;
                     dlog(`📍 Fuera de ruta (${Math.round(dist)}m). Monitoreando...`, 'warning');
                 } else if (now - offRouteStartTime > OFF_ROUTE_DURATION_MS) {
                     dlog(`🔄 Auto-reroute disparado`, 'warning');
@@ -1721,6 +1727,78 @@
             if (tabId === 'historial') loadHistorial();
         }
 
+        function getMapLocalHour(date = new Date()) {
+            let hour = date.getHours();
+            try {
+                const parts = new Intl.DateTimeFormat(undefined, { hour: '2-digit', hour12: false }).formatToParts(date);
+                const h = Number(parts.find(p => p.type === 'hour')?.value);
+                if (Number.isFinite(h)) hour = h;
+            } catch (e) {}
+            return hour;
+        }
+
+        function isNightMapTime(date = new Date()) {
+            const hour = getMapLocalHour(date);
+            return hour >= 18 || hour < 6;
+        }
+
+        function getMapStyleForCurrentTime() {
+            return isNightMapTime() ? MAP_STYLE_NIGHT : MAP_STYLE_DAY;
+        }
+
+        function restoreRouteLayersAfterStyleChange() {
+            if (!map || !mapInitialized || !window.currentRouteCoords || window.currentRouteCoords.length < 2) return;
+            try {
+                if (map.getLayer('route-line')) map.removeLayer('route-line');
+                if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
+                if (map.getSource('route')) map.removeSource('route');
+                if (map.getSource('route-remaining')) map.removeSource('route-remaining');
+            } catch (e) {}
+            const coords = window.currentRouteCoords.map(c => [c[1], c[0]]);
+            const geo = { type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:coords} };
+            const night = currentMapTheme === 'night';
+            map.addSource('route', {type:'geojson', data:geo});
+            map.addLayer({
+                id:'route-line-bg', type:'line', source:'route',
+                layout:{'line-join':'round','line-cap':'round'},
+                paint:{'line-color':night ? '#021a35' : '#06356b','line-width':12,'line-opacity':night ? 0.95 : 0.32}
+            });
+            map.addSource('route-remaining', {type:'geojson', data:geo});
+            map.addLayer({
+                id:'route-line', type:'line', source:'route-remaining',
+                layout:{'line-join':'round','line-cap':'round'},
+                paint:{
+                    'line-color':night ? '#39a9ff' : '#1687ff',
+                    'line-width':night ? 7 : 7,
+                    'line-opacity':1,
+                    'line-blur':night ? 0.15 : 0
+                }
+            });
+            routeLayers = ['route','route-remaining','route-line','route-line-bg'];
+        }
+
+        function applyMapTheme(force = false) {
+            if (!map || !mapInitialized) return;
+            const nextTheme = isNightMapTime() ? 'night' : 'day';
+            if (!force && currentMapTheme === nextTheme) return;
+            currentMapTheme = nextTheme;
+            const nextStyle = nextTheme === 'night' ? MAP_STYLE_NIGHT : MAP_STYLE_DAY;
+            try {
+                map.once('style.load', () => {
+                    restoreRouteLayersAfterStyleChange();
+                });
+                map.setStyle(nextStyle);
+            } catch (e) {
+                dlog('⚠️ No se pudo cambiar el tema del mapa: ' + e.message, 'warning');
+            }
+        }
+
+        function startAutomaticMapTheme() {
+            if (mapThemeTimer) clearInterval(mapThemeTimer);
+            mapThemeTimer = setInterval(() => applyMapTheme(false), 30 * 1000);
+            applyMapTheme(false);
+        }
+
         async function initMap(center = [-63.1821, -17.7833]) {
             if (map && mapInitialized) { try { map.resize(); } catch (e) {} return true; }
             if (initMapInProgress) {
@@ -1752,7 +1830,7 @@
 
                 map = new mapboxgl.Map({
                     container: container,
-                    style: 'mapbox://styles/mapbox/streets-v12',
+                    style: getMapStyleForCurrentTime(),
                     center: initialCenter,
                     zoom: 16,
                     pitch: 0,
@@ -1802,6 +1880,10 @@
                     });
                 } catch (e) {}
 
+                currentMapTheme = null;
+                startAutomaticMapTheme();
+                setTimeout(() => applyMapTheme(true), 250);
+                dlog(`🌙 Tema automático: ${currentMapTheme === 'night' ? 'noche' : 'día'}`, 'info');
                 dlog('✅ Mapa inicializado (con modo exploración)', 'success');
                 return true;
             } catch (e) {
@@ -1888,7 +1970,6 @@
             document.getElementById('rideDestination').textContent = ride.destination_address || 'No especificado';
             document.getElementById('ridePrice').textContent = `Bs ${parseFloat(ride.price || 0).toFixed(2)}`;
 
-            // 🆕 Mostrar acompañante si existe
             const companionItem = document.getElementById('rideCompanionItem');
             const companionText = document.getElementById('rideCompanion');
             const companionValue = getCompanionText(ride.companion_type);
@@ -1900,7 +1981,6 @@
                 companionItem.classList.add('hidden');
             }
 
-            // 🆕 Mostrar carga si existe
             const cargoItem = document.getElementById('rideCargoItem');
             const cargoText = document.getElementById('rideCargo');
             if (ride.has_cargo) {
@@ -2008,8 +2088,6 @@
             } else if (currentRideStatus === 'llegado_origen') {
                 document.getElementById('pickupBtn').classList.remove('hidden');
             } else if (currentRideStatus === 'en_curso') {
-                // El check solo aparece cuando ya estamos cerca del destino.
-                // La validación final de finishRide() se mantiene como segunda barrera.
                 let nearDestination = false;
                 if (currentPosition && currentRideDestination) {
                     const dist = getDistanceFromLatLonInMeters(
@@ -2051,7 +2129,6 @@
                         ride = rpcResult.ride;
                     }
                 } else if (ride.status === 'aceptado' && ride.driver_id === currentDriverId) {
-                    // ya asignada
                 } else {
                     alert('No disponible.'); hideRideModal(); pendingRide = null; return;
                 }
@@ -2146,64 +2223,64 @@
                     .select('route_geometry, route_distance_km, route_duration_min, route_summary, destination_lat, destination_lng')
                     .eq('id', rideId)
                     .single();
-                
+
                 if (loadErr || !savedRide?.route_geometry?.coordinates) {
                     dlog('⚠️ No hay ruta guardada para este viaje', 'warning');
                     return false;
                 }
-                
+
                 const geojson = savedRide.route_geometry;
                 if (geojson.type !== 'LineString' || !Array.isArray(geojson.coordinates)) { return false; }
-                
+
                 const mapboxCoords = geojson.coordinates;
                 if (mapboxCoords.length < 2) return false;
-                
+
                 if (!map || !mapInitialized) { await initMap(); await ensureMapReady(); }
                 if (!map) return false;
-                
+
                 try {
                     if (map.getLayer('route-line')) map.removeLayer('route-line');
                     if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
                     if (map.getSource('route')) map.removeSource('route');
                     if (map.getSource('route-remaining')) map.removeSource('route-remaining');
                 } catch (e) {}
-                
+
                 routeLayers = [];
-                
+
                 if (pickupMarker) { pickupMarker.remove(); pickupMarker = null; }
                 if (dropoffMarker) { dropoffMarker.remove(); dropoffMarker = null; }
-                
+
                 if (savedRide.destination_lat && savedRide.destination_lng) {
                     const de = document.createElement('div');
                     de.innerHTML = '<i class="fas fa-flag-checkered" style="font-size:35px;color:#ef4444;text-shadow:0 0 8px #ef4444;"></i>';
                     dropoffMarker = new mapboxgl.Marker(de).setLngLat([savedRide.destination_lng, savedRide.destination_lat]).addTo(map);
                 }
-                
+
                 const fullGeojson = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mapboxCoords } };
                 map.addSource('route', { type: 'geojson', data: fullGeojson });
                 map.addLayer({ id: 'route-line-bg', type: 'line', source: 'route',
                     layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: { 'line-color': '#1a1a1a', 'line-width': 8, 'line-opacity': 0.4 } });
-                
+                    paint: { 'line-color': currentMapTheme === 'night' ? '#021a35' : '#06356b', 'line-width': 12, 'line-opacity': currentMapTheme === 'night' ? 0.95 : 0.32 } });
+
                 map.addSource('route-remaining', {
                     type: 'geojson',
                     data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mapboxCoords } }
                 });
                 map.addLayer({ id: 'route-line', type: 'line', source: 'route-remaining',
                     layout: { 'line-join': 'round', 'line-cap': 'round' },
-                    paint: { 'line-color': '#ff7a00', 'line-width': 8 } });
-                
+                    paint: { 'line-color': currentMapTheme === 'night' ? '#39a9ff' : '#1687ff', 'line-width': 7, 'line-opacity': 1, 'line-blur': currentMapTheme === 'night' ? 0.15 : 0 } });
+
                 routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
-                
+
                 window.currentRouteCoords = mapboxCoords.map(c => [c[1], c[0]]);
                 window.currentRouteDistance = (savedRide.route_distance_km || 0) * 1000;
                 lastRouteProgressIndex = 0;
                 window.currentRouteSnap = null;
-                
+
                 if (savedRide.destination_lat && savedRide.destination_lng) {
                     currentRouteTarget = { lat: savedRide.destination_lat, lng: savedRide.destination_lng };
                 }
-                
+
                 dlog(`✅ Ruta del pasajero aplicada: ${savedRide.route_distance_km} km, ~${savedRide.route_duration_min} min`, 'success');
                 return true;
             } catch (e) {
@@ -2218,16 +2295,16 @@
             if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
             currentRideStatus = 'en_curso';
             updateActionButtons();
-            
+
             dlog('🗺️ Buscando ruta guardada por el pasajero...', 'info');
             const loaded = await loadAndDrawSavedRoute(currentRideId);
-            
+
             if (loaded) {
                 dlog('✅ Usando ruta del pasajero (misma que ve él)', 'success');
                 speakInstruction('Iniciando viaje al destino');
                 return;
             }
-            
+
             dlog('⚠️ Sin ruta guardada, calculando con OSRM...', 'warning');
             const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng').eq('id', currentRideId).single();
             if (ride && ride.destination_lat && ride.destination_lng && currentPosition) {
@@ -2277,9 +2354,6 @@
             if (!map || !mapInitialized) { await initMap(); }
             const mapOk = await ensureMapReady();
             if (!mapOk || !map) { dlog('❌ drawRoute: mapa no disponible', 'error'); return false; }
-            // IMPORTANTE: durante un recálculo conservamos la última ruta válida
-            // visible. Así el conductor nunca se queda sin línea mientras OSRM responde.
-            // La ruta anterior solo se reemplaza cuando la nueva geometría ya fue validada.
             if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
             currentNavigationSteps = []; currentNavigationIndex = 0;
             if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -2289,8 +2363,6 @@
                 pe.innerHTML = '<i class="fas fa-user-circle" style="font-size:35px;color:#22c55e;text-shadow:0 0 8px #22c55e;"></i>';
                 pickupMarker = new mapboxgl.Marker(pe).setLngLat([waypointCoords[1], waypointCoords[0]]).addTo(map);
             }
-            // Durante la fase de recogida, la única meta de navegación es el pasajero.
-            // No mostramos ni calculamos todavía la ruta hacia su destino.
             const pickupStage = currentRideStatus === 'aceptado';
             const routeTargetCoords = pickupStage ? waypointCoords : destinationCoords;
 
@@ -2319,19 +2391,15 @@
                     let cleanedCoords = cleanRoadRouteGeometry(rawCoords);
                     if (!Array.isArray(cleanedCoords) || cleanedCoords.length < 2) { dlog('❌ Limpieza inválida', 'error'); return false; }
 
-                    // Anclamos el inicio visual al indicador cuando la ruta nueva
-                    // comienza suficientemente cerca. Así, al redireccionar, la línea
-                    // nace desde la posición actual del conductor y luego continúa por
-                    // la geometría real de las calles.
                     const routeStart = cleanedCoords[0];
                     const gpsToRouteStart = getDistanceFromLatLonInMeters(
                         originCoords[0], originCoords[1], routeStart[1], routeStart[0]
                     );
-                    if (gpsToRouteStart <= 20) {
+                    const isRerouteContext = isRerouting || (Date.now() - lastRerouteTime < 3000);
+                    if (gpsToRouteStart <= 50 || isRerouteContext) {
                         cleanedCoords = [[originCoords[1], originCoords[0]], ...cleanedCoords];
                     }
 
-                    // La nueva ruta ya es válida: ahora sí reemplazamos la anterior.
                     try {
                         if (map.getLayer('route-line')) map.removeLayer('route-line');
                         if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
@@ -2350,7 +2418,7 @@
                     map.addSource('route', { type: 'geojson', data: fullGeojson });
                     map.addLayer({ id: 'route-line-bg', type: 'line', source: 'route',
                         layout: { 'line-join': 'round', 'line-cap': 'round' },
-                        paint: { 'line-color': '#1a1a1a', 'line-width': 8, 'line-opacity': 0.4 } });
+                        paint: { 'line-color': currentMapTheme === 'night' ? '#021a35' : '#06356b', 'line-width': 12, 'line-opacity': currentMapTheme === 'night' ? 0.95 : 0.32 } });
 
                     map.addSource('route-remaining', {
                         type: 'geojson',
@@ -2358,12 +2426,10 @@
                     });
                     map.addLayer({ id: 'route-line', type: 'line', source: 'route-remaining',
                         layout: { 'line-join': 'round', 'line-cap': 'round' },
-                        paint: { 'line-color': '#ff7a00', 'line-width': 8 } });
+                        paint: { 'line-color': currentMapTheme === 'night' ? '#39a9ff' : '#1687ff', 'line-width': 7, 'line-opacity': 1, 'line-blur': currentMapTheme === 'night' ? 0.15 : 0 } });
 
                     routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
 
-                    // Marcadores de etapa: al buscar al pasajero solo mostramos su punto.
-                    // El destino del pasajero aparece recién cuando comienza el viaje.
                     if (pickupStage) {
                         const pe = document.createElement('div');
                         pe.innerHTML = '<i class="fas fa-user-circle" style="font-size:35px;color:#22c55e;text-shadow:0 0 8px #22c55e;"></i>';
@@ -2380,8 +2446,6 @@
 
                     window.currentRouteCoords = cleanedCoords;
                     window.currentRouteDistance = route.distance || 1000;
-                    lastRouteProgressIndex = 0;
-                    window.currentRouteSnap = null;
 
                     drawManeuverArrow(currentNavigationSteps);
                     currentRouteTarget = { lat: routeTargetCoords[0], lng: routeTargetCoords[1] };
@@ -2572,7 +2636,36 @@
         function createDriverMarker(lat, lng, bearing = 0) {
             const el = document.createElement('div');
             el.className = 'driver-arrow';
-            el.innerHTML = '<i class="fas fa-arrow-up"></i>';
+            el.innerHTML = `
+                <div class="driver-orientation"></div>
+                <div class="driver-ring"></div>
+                <div class="driver-bike" aria-hidden="true">
+                    <svg viewBox="0 0 80 116" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="bikeBodyGradient" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0" stop-color="#ffe36b"/>
+                                <stop offset="0.45" stop-color="#ffc400"/>
+                                <stop offset="1" stop-color="#d58b00"/>
+                            </linearGradient>
+                            <linearGradient id="bikeBlackGradient" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0" stop-color="#353a43"/>
+                                <stop offset="0.5" stop-color="#101318"/>
+                                <stop offset="1" stop-color="#050608"/>
+                            </linearGradient>
+                        </defs>
+                        <ellipse cx="40" cy="92" rx="12" ry="20" fill="#050608" stroke="#4b5563" stroke-width="2"/>
+                        <ellipse cx="40" cy="22" rx="11" ry="18" fill="#050608" stroke="#4b5563" stroke-width="2"/>
+                        <path d="M31 25 Q40 14 49 25 L57 42 Q60 49 54 57 L49 67 Q46 73 40 74 Q34 73 31 67 L26 57 Q20 49 23 42 Z" fill="url(#bikeBodyGradient)" stroke="#0a0c10" stroke-width="2.5"/>
+                        <path d="M29 42 Q40 35 51 42 L48 54 Q40 59 32 54 Z" fill="url(#bikeBlackGradient)"/>
+                        <path d="M30 58 Q40 63 50 58 L48 78 Q44 87 40 88 Q36 87 32 78 Z" fill="url(#bikeBlackGradient)"/>
+                        <path d="M28 29 L16 24 M52 29 L64 24" stroke="#0a0c10" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M15 23 L7 19 M65 23 L73 19" stroke="#9ca3af" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M34 19 Q40 15 46 19 L44 27 Q40 30 36 27 Z" fill="#8bd7ff" stroke="#0a0c10" stroke-width="2"/>
+                        <path d="M33 79 Q40 83 47 79" stroke="#ffc400" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M36 94 Q40 97 44 94" stroke="#ff3b30" stroke-width="4" stroke-linecap="round"/>
+                        <circle cx="40" cy="7" r="3" fill="#fff"/>
+                    </svg>
+                </div>`;
             driverMarker = new mapboxgl.Marker({
                 element: el,
                 anchor: 'center',
@@ -2582,8 +2675,8 @@
                 .setLngLat([lng, lat]).setRotation(0).addTo(map);
             markerCurrentPos = [lat, lng];
             markerTargetPos = [lat, lng];
-            markerCurrentBearing = bearing;
-            markerTargetBearing = bearing;
+            markerCurrentBearing = 0;
+            markerTargetBearing = 0;
             if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
         }
         function updateDriverMarker(lat, lng, bearing = 0) {
@@ -2610,11 +2703,11 @@
                     window.currentSpeedKmh = speedKmh;
                     window.currentGpsAccuracy = position.coords.accuracy || 0;
                     const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
-                    const renderLat = gpsLat;
-                    const renderLng = gpsLng;
+                    // 🆕 renderLat/renderLng ahora son `let` para permitir el soft snap a la ruta.
+                    let renderLat = gpsLat;
+                    let renderLng = gpsLng;
                     currentPosition = [gpsLat, gpsLng];
 
-                    // Rumbo de desplazamiento: más fiable para navegación cuando el vehículo/caminante está avanzando.
                     if (previousGpsForHeading) {
                         const movedMeters = getDistanceFromLatLonInMeters(
                             previousGpsForHeading.lat, previousGpsForHeading.lng, gpsLat, gpsLng
@@ -2685,9 +2778,6 @@
                         const snapDistance = snap && Number.isFinite(snap.distance) ? snap.distance : Infinity;
 
                         if (snap && Number.isFinite(snap.lat) && Number.isFinite(snap.lng)) {
-                            // El primer punto visible queda anclado al indicador.
-                            // Solo hacemos este pequeño enlace cuando el GPS está cerca
-                            // de la calle para evitar diagonales largas atravesando cuadras.
                             const gpsToSnap = getDistanceFromLatLonInMeters(gpsLat, gpsLng, snap.lat, snap.lng);
                             if (gpsToSnap <= 20) {
                                 remainingCoords.push([gpsLng, gpsLat]);
@@ -2719,6 +2809,27 @@
                     }
 
                     if (enNavegacion) checkAutoReroute(gpsLat, gpsLng);
+
+                    // 🆕 Soft snap del indicador a la línea de ruta durante navegación.
+                    // Cuando el GPS está cerca de la ruta, atraemos el marcador hacia la línea
+                    // para que quede pegado al carril en vez de flotar al costado.
+                    // Si la precisión del GPS es pobre (>30m) o estás lejos de la ruta (>30m),
+                    // no se aplica snap y el indicador sigue el GPS crudo.
+                    if (enNavegacion) {
+                        const snap = window.currentRouteSnap;
+                        const acc = Number(window.currentGpsAccuracy) || 999;
+                        if (snap && Number.isFinite(snap.lat) && Number.isFinite(snap.lng) && Number.isFinite(snap.distance) && acc <= 30) {
+                            let snapFactor = 0;
+                            if (snap.distance <= 4)        snapFactor = 0.92;
+                            else if (snap.distance <= 10)  snapFactor = 0.75;
+                            else if (snap.distance <= 18)  snapFactor = 0.50;
+                            else if (snap.distance <= 30)  snapFactor = 0.25;
+                            if (snapFactor > 0) {
+                                renderLat = gpsLat + (snap.lat - gpsLat) * snapFactor;
+                                renderLng = gpsLng + (snap.lng - gpsLng) * snapFactor;
+                            }
+                        }
+                    }
 
                     if (map && mapInitialized) {
                         updateDriverMarker(renderLat, renderLng, bearing);
@@ -2893,7 +3004,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.6 — companion type + zoom out + ruta compartida', 'success');
+        dlog('App iniciada. v6.8 — hybrid camera + smooth reroute + soft snap', 'success');
     </script>
 </body>
 </html>

@@ -701,6 +701,13 @@
         const OFF_ROUTE_THRESHOLD_M = 45;
         const OFF_ROUTE_DURATION_MS = 8000;
         const REROUTE_COOLDOWN_MS = 20000;
+
+        // 🎯 Radio máximo (metros) para mostrar viajes del POOL ABIERTO.
+        // Las asignaciones directas (ride.driver_id === yo) NO se filtran nunca.
+        // Si el conductor está en Santa Cruz y el viaje está en Montero (~40 km),
+        // la alerta ya no aparece porque supera este umbral.
+        const MAX_POOL_DISTANCE_M = 500;
+
         const NAV_ZOOM_MIN = 16.8;
         const NAV_ZOOM_MAX = 18.2;
         const NAV_PITCH = 50;
@@ -1959,8 +1966,44 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // 🎯 showRideRequest — CON FILTRO DE DISTANCIA PARA POOL ABIERTO
+        // ═══════════════════════════════════════════════════════════════
+        // Reglas:
+        //  • Si el viaje es una asignación directa (driver_id === yo)
+        //    → SIEMPRE se muestra (no se filtra por distancia).
+        //  • Si es un viaje del pool abierto (pendiente + sin dueño)
+        //    → SÓLO se muestra si el origen está dentro de
+        //      MAX_POOL_DISTANCE_M (500 m por defecto).
+        //  Esto evita que un conductor en Santa Cruz reciba alertas de
+        //  viajes en Montero (~40 km).
+        // ═══════════════════════════════════════════════════════════════
         async function showRideRequest(ride) {
             if (!isDriverOnline) return;
+
+            const isDirectAssignment = ride.driver_id === currentDriverId;
+
+            if (!isDirectAssignment && ride.status === 'pendiente') {
+                if (!currentPosition) {
+                    dlog('⏭️ Viaje del pool ignorado: aún sin posición GPS', 'info');
+                    return;
+                }
+                const oLat = Number(ride.origin_lat);
+                const oLng = Number(ride.origin_lng);
+                if (!Number.isFinite(oLat) || !Number.isFinite(oLng)) {
+                    dlog('⏭️ Viaje del pool ignorado: sin coordenadas de origen', 'warning');
+                    return;
+                }
+                const distanceM = getDistanceFromLatLonInMeters(
+                    currentPosition[0], currentPosition[1], oLat, oLng
+                );
+                if (distanceM > MAX_POOL_DISTANCE_M) {
+                    dlog(`⏭️ Viaje del pool ignorado: ${Math.round(distanceM)} m > ${MAX_POOL_DISTANCE_M} m`, 'info');
+                    return;
+                }
+                dlog(`📍 Viaje del pool aceptado: ${Math.round(distanceM)} m de distancia`, 'success');
+            }
+
             if (ride.status === 'pendiente') {
                 const rejected = await hasRejectedRide(ride.id);
                 if (rejected) return;
@@ -2703,7 +2746,6 @@
                     window.currentSpeedKmh = speedKmh;
                     window.currentGpsAccuracy = position.coords.accuracy || 0;
                     const enNavegacion = (currentRideStatus === 'aceptado' || currentRideStatus === 'en_curso');
-                    // 🆕 renderLat/renderLng ahora son `let` para permitir el soft snap a la ruta.
                     let renderLat = gpsLat;
                     let renderLng = gpsLng;
                     currentPosition = [gpsLat, gpsLng];
@@ -2810,11 +2852,6 @@
 
                     if (enNavegacion) checkAutoReroute(gpsLat, gpsLng);
 
-                    // 🆕 Soft snap del indicador a la línea de ruta durante navegación.
-                    // Cuando el GPS está cerca de la ruta, atraemos el marcador hacia la línea
-                    // para que quede pegado al carril en vez de flotar al costado.
-                    // Si la precisión del GPS es pobre (>30m) o estás lejos de la ruta (>30m),
-                    // no se aplica snap y el indicador sigue el GPS crudo.
                     if (enNavegacion) {
                         const snap = window.currentRouteSnap;
                         const acc = Number(window.currentGpsAccuracy) || 999;
@@ -3004,7 +3041,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.8 — hybrid camera + smooth reroute + soft snap', 'success');
+        dlog('App iniciada. v6.8 — hybrid camera + smooth reroute + soft snap + pool filter', 'success');
     </script>
 </body>
 </html>

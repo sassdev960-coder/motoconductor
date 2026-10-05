@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V1.4 - XSS HARDENED + LIVE STATS + POOL FILTER -->
+<!-- ROUTE STREET-FOLLOWING V1.5 - COMMISSION DYNAMIC + NET EARNINGS -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1522,6 +1522,10 @@
             return `${h}h ${m}m`;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  💰 v1.5 — GANANCIA NETA (después de comisión)
+        //  Lee de platform_commissions (fuente de verdad del neto real)
+        // ═══════════════════════════════════════════════════════════
         async function loadDriverStats() {
             if (!currentDriverId) return;
             try {
@@ -1529,18 +1533,18 @@
                 hoy.setHours(0, 0, 0, 0);
                 const hoyISO = hoy.toISOString();
 
-                const { data: ridesHoy, error } = await supabaseClient
-                    .from('rides')
-                    .select('price, status, completed_at')
+                // ✅ NUEVO: leer de platform_commissions → driver_amount ya viene neto
+                const { data: commissions, error } = await supabaseClient
+                    .from('platform_commissions')
+                    .select('driver_amount, created_at')
                     .eq('driver_id', currentDriverId)
-                    .eq('status', 'completado')
-                    .gte('completed_at', hoyISO);
+                    .gte('created_at', hoyISO);
 
                 if (error) throw error;
 
-                const lista = Array.isArray(ridesHoy) ? ridesHoy : [];
+                const lista = Array.isArray(commissions) ? commissions : [];
                 const viajesCount = lista.length;
-                const gananciaTotal = lista.reduce((sum, r) => sum + (parseFloat(r.price) || 0), 0);
+                const gananciaTotal = lista.reduce((sum, c) => sum + (parseFloat(c.driver_amount) || 0), 0);
                 const horasSegundos = getCurrentOnlineSeconds();
 
                 const elViajes = document.getElementById('statViajes');
@@ -1550,7 +1554,7 @@
                 if (elGanancia) elGanancia.textContent = `Bs ${gananciaTotal.toFixed(0)}`;
                 if (elHoras) elHoras.textContent = formatOnlineHours(horasSegundos);
 
-                dlog(`📊 Stats → ${viajesCount} viajes · Bs ${gananciaTotal.toFixed(0)} · ${formatOnlineHours(horasSegundos)}`, 'info');
+                dlog(`📊 Stats → ${viajesCount} viajes · Bs ${gananciaTotal.toFixed(0)} neto · ${formatOnlineHours(horasSegundos)}`, 'info');
             } catch (e) {
                 dlog('❌ Error cargando stats: ' + e.message, 'error');
             }
@@ -3182,7 +3186,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v1.4 — XSS hardened + live stats + pool filter + notif fix', 'success');
+        dlog('App iniciada. v1.5 — Comisión dinámica + ganancia neta real + stats desde platform_commissions', 'success');
     </script>
 </body>
 </html>

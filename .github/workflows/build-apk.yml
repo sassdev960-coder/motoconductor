@@ -118,6 +118,22 @@ jobs:
             exit 1
           fi
 
+
+# ⚠️ TEMPORAL - borrar después de verificar
+- name: 🔍 Verificar proyecto Firebase del secret
+  run: |
+    echo "==================================="
+    echo "PROJECT_ID dentro del secret:"
+    grep -o '"project_id": "[^"]*"' android/app/google-services.json | head -1
+    echo ""
+    echo "PACKAGE_NAME del client:"
+    grep -o '"package_name": "[^"]*"' android/app/google-services.json | head -1
+    echo ""
+    echo "PROJECT_NUMBER:"
+    grep -o '"project_number": "[^"]*"' android/app/google-services.json | head -1
+    echo "==================================="
+
+
       # ============================================================
       # 12. ICONOS
       # ============================================================

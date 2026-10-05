@@ -79,13 +79,13 @@ jobs:
           npx cap add android
 
       # ============================================================
-      # 9. VERSION CODE
+      # 9. VERSION CODE  (v1.5)
       # ============================================================
       - name: 🔢 Configurar versionCode y versionName
         run: |
           GRADLE_FILE="android/app/build.gradle"
-          sed -i 's/versionCode [0-9]*/versionCode 4/' "$GRADLE_FILE"
-          sed -i 's/versionName "[^"]*"/versionName "1.4"/' "$GRADLE_FILE"
+          sed -i 's/versionCode [0-9]*/versionCode 5/' "$GRADLE_FILE"
+          sed -i 's/versionName "[^"]*"/versionName "1.5"/' "$GRADLE_FILE"
           echo "=== Versión configurada ==="
           grep -E "versionCode|versionName" "$GRADLE_FILE"
 
@@ -346,7 +346,7 @@ jobs:
       - name: 📤 Subir AAB
         uses: actions/upload-artifact@v4
         with:
-          name: moto-movil-conductor-aab-v1.4
+          name: moto-movil-conductor-aab-v1.5
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
@@ -355,11 +355,11 @@ jobs:
       # ============================================================
       - name: 🎉 Resumen
         run: |
-          echo "## ✅ AAB del conductor v1.4 generado" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ AAB del conductor v1.5 generado" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuración" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔢 versionCode: **4**" >> $GITHUB_STEP_SUMMARY
-          echo "- 🏷️ versionName: **1.4**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔢 versionCode: **5**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏷️ versionName: **1.5**" >> $GITHUB_STEP_SUMMARY
           echo "- 📱 Package: **com.motomovil.conductor**" >> $GITHUB_STEP_SUMMARY
           echo "- 📱 minSdk: API 23 (Android 6.0+)" >> $GITHUB_STEP_SUMMARY
           echo "- 📱 targetSdk: API 36 (Android 16)" >> $GITHUB_STEP_SUMMARY
@@ -367,5 +367,10 @@ jobs:
           echo "- ⚡ Capacitor: 6.2.0" >> $GITHUB_STEP_SUMMARY
           echo "- 🔐 Firmado con keystore del conductor" >> $GITHUB_STEP_SUMMARY
           echo "- 🔥 Firebase: moto-movil-conductor (448806214995)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🆕 Cambios v1.5" >> $GITHUB_STEP_SUMMARY
+          echo "- 💰 Ganancia NETA real (después de comisión 10%)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Stats ahora leen de \`platform_commissions\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Comisión dinámica desde \`pricing_config\` (admin puede cambiarla)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 Descarga el AAB en **Artifacts**." >> $GITHUB_STEP_SUMMARY

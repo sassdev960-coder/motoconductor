@@ -118,21 +118,28 @@ jobs:
             exit 1
           fi
 
-
-# ⚠️ TEMPORAL - borrar después de verificar
-- name: 🔍 Verificar proyecto Firebase del secret
-  run: |
-    echo "==================================="
-    echo "PROJECT_ID dentro del secret:"
-    grep -o '"project_id": "[^"]*"' android/app/google-services.json | head -1
-    echo ""
-    echo "PACKAGE_NAME del client:"
-    grep -o '"package_name": "[^"]*"' android/app/google-services.json | head -1
-    echo ""
-    echo "PROJECT_NUMBER:"
-    grep -o '"project_number": "[^"]*"' android/app/google-services.json | head -1
-    echo "==================================="
-
+      # ============================================================
+      # 11.b VERIFICAR PROYECTO FIREBASE DEL SECRET
+      # ⚠️ TEMPORAL — borrar este step después de verificar
+      # ============================================================
+      - name: 🔍 Verificar proyecto Firebase del secret
+        run: |
+          echo "==================================="
+          echo "PROJECT_ID dentro del secret:"
+          grep -o '"project_id": "[^"]*"' android/app/google-services.json | head -1
+          echo ""
+          echo "PROJECT_NUMBER:"
+          grep -o '"project_number": "[^"]*"' android/app/google-services.json | head -1
+          echo ""
+          echo "PACKAGE_NAMES registrados:"
+          grep -o '"package_name": "[^"]*"' android/app/google-services.json | sort -u
+          echo ""
+          echo "MOBILESDK_APP_ID (primer client):"
+          grep -o '"mobilesdk_app_id": "[^"]*"' android/app/google-services.json | head -1
+          echo "==================================="
+          echo ""
+          echo "⚠️ Copia estos valores y compártelos para diagnosticar."
+          echo "⚠️ Después de verificar, borra este step del workflow."
 
       # ============================================================
       # 12. ICONOS

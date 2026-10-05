@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V1.5 - COMMISSION DYNAMIC + NET EARNINGS -->
+<!-- ROUTE STREET-FOLLOWING V1.6 - PREPAID COMMISSION MODEL -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -43,7 +43,7 @@
         .status-indicator.online{background:var(--green-online);box-shadow:0 0 8px var(--green-glow);animation:pulseGreen 2s infinite}
         .status-indicator.offline{background:var(--bg-elevated)}
         @keyframes pulseGreen{0%,100%{box-shadow:0 0 8px var(--green-glow)}50%{box-shadow:0 0 16px var(--green-glow)}}
-        .status-card{border-radius:var(--border-radius-lg);padding:24px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;transition:all 0.5s var(--ease-smooth);position:relative;z-index:1;overflow:hidden}
+        .status-card{border-radius:var(--border-radius-lg);padding:24px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;transition:all 0.5s var(--ease-smooth);position:relative;z-index:1;overflow:hidden}
         .status-card.online{background:linear-gradient(135deg,var(--primary-orange) 0%,var(--primary-orange-dark) 100%);box-shadow:var(--shadow-glow)}
         .status-card.offline{background:linear-gradient(135deg,var(--bg-surface) 0%,var(--bg-elevated) 100%);border:1px solid rgba(255,255,255,0.05);box-shadow:var(--shadow-md)}
         .status-card.online::before{content:'';position:absolute;top:50%;left:50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,0.15) 0%,transparent 50%);transform:translate(-50%,-50%) scale(0);animation:pulseWave 3s ease-out infinite}
@@ -64,10 +64,60 @@
         .slider:before{position:absolute;content:"";height:24px;width:24px;left:2px;bottom:2px;background:var(--white);transition:.3s var(--ease-bounce);border-radius:var(--border-radius-full);box-shadow:var(--shadow-sm)}
         input:checked+.slider{background:var(--white);border-color:var(--white)}
         input:checked+.slider:before{transform:translateX(26px);background:var(--primary-orange)}
+
+        /* ============ v1.6: BALANCE BANNER ============ */
+        .balance-banner{
+            border-radius:var(--border-radius-md);
+            padding:12px 16px;
+            margin-bottom:18px;
+            display:flex;
+            align-items:center;
+            gap:12px;
+            font-size:13px;
+            font-weight:600;
+            position:relative;
+            z-index:1;
+            transition:all 0.3s var(--ease-smooth);
+        }
+        .balance-banner.ok{
+            background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.04));
+            border:1px solid rgba(34,197,94,0.3);
+            color:var(--green-online);
+        }
+        .balance-banner.warning{
+            background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));
+            border:1px solid rgba(245,158,11,0.4);
+            color:var(--yellow);
+            animation:bannerPulse 2s infinite;
+        }
+        .balance-banner.urgent{
+            background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(239,68,68,0.08));
+            border:1px solid rgba(239,68,68,0.5);
+            color:var(--red);
+            animation:bannerPulse 1s infinite;
+        }
+        .balance-banner.negative{
+            background:linear-gradient(135deg,rgba(239,68,68,0.25),rgba(239,68,68,0.1));
+            border:1px solid var(--red);
+            color:var(--red);
+            animation:bannerPulse 1s infinite;
+        }
+        @keyframes bannerPulse{
+            0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4);}
+            50%{box-shadow:0 0 0 6px rgba(239,68,68,0);}
+        }
+        .balance-banner i{font-size:16px;flex-shrink:0}
+        .balance-banner .balance-content{flex:1;display:flex;flex-direction:column;gap:2px}
+        .balance-banner .balance-title{font-size:13px;font-weight:700}
+        .balance-banner .balance-subtitle{font-size:11px;opacity:0.8;font-weight:500}
+        .balance-banner.hidden{display:none}
+
         .stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px;position:relative;z-index:1}
         .stat-item{background:linear-gradient(145deg,var(--bg-surface),var(--bg-dark-gray));border:1px solid rgba(255,255,255,0.05);border-radius:var(--border-radius-md);padding:16px 10px;text-align:center;position:relative;overflow:hidden;transition:all 0.3s var(--ease-smooth)}
         .stat-item:active{transform:scale(0.97);border-color:var(--primary-orange-subtle)}
         .stat-icon-circle{display:inline-flex;justify-content:center;align-items:center;width:44px;height:44px;border-radius:var(--border-radius-md);background:linear-gradient(135deg,var(--primary-orange),var(--primary-orange-dark));color:var(--white);font-size:18px;margin-bottom:10px;box-shadow:0 4px 12px var(--primary-orange-glow);position:relative;z-index:1}
+        .stat-icon-circle.green{background:linear-gradient(135deg,var(--green-online),#16a34a);box-shadow:0 4px 12px var(--green-glow)}
+        .stat-icon-circle.red{background:linear-gradient(135deg,var(--red),#dc2626);box-shadow:0 4px 12px var(--red-glow)}
         .stat-label{font-size:10px;color:var(--gray-text);margin-bottom:4px;text-transform:uppercase;font-weight:600;letter-spacing:0.5px}
         .stat-value{font-size:22px;font-weight:800;color:var(--white);letter-spacing:-0.5px}
         .online-card{border-radius:var(--border-radius-lg);margin-bottom:22px;overflow:hidden;height:150px;position:relative;z-index:1;box-shadow:var(--shadow-md);background:linear-gradient(135deg,var(--primary-orange-subtle),var(--bg-surface));border:1px solid rgba(255,255,255,0.05)}
@@ -201,7 +251,92 @@
         .ride-btn:active{transform:scale(0.97)}
         .ride-btn.accept{background:linear-gradient(135deg,var(--primary-orange),var(--primary-orange-dark));color:white;box-shadow:0 6px 20px var(--primary-orange-glow)}
         .ride-btn.reject{background:rgba(255,255,255,0.05);color:var(--gray-light);border:1px solid rgba(255,255,255,0.08)}
+
+        /* ============ v1.6: PAYMENT METHOD MODAL ============ */
+        .payment-options{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:14px;
+            margin-bottom:20px;
+        }
+        .payment-option{
+            background:var(--bg-surface);
+            border:2px solid rgba(255,255,255,0.08);
+            border-radius:var(--border-radius-lg);
+            padding:22px 14px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:12px;
+            cursor:pointer;
+            transition:all 0.25s var(--ease-smooth);
+            position:relative;
+            overflow:hidden;
+        }
+        .payment-option:active{transform:scale(0.96)}
+        .payment-option .payment-icon{
+            width:64px;
+            height:64px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:28px;
+            transition:all 0.25s var(--ease-smooth);
+        }
+        .payment-option[data-method="efectivo"] .payment-icon{
+            background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));
+            color:var(--green-online);
+        }
+        .payment-option[data-method="qr"] .payment-icon{
+            background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(139,92,246,0.08));
+            color:var(--purple);
+        }
+        .payment-option .payment-title{
+            font-size:15px;
+            font-weight:800;
+            color:var(--white);
+            letter-spacing:-0.3px;
+        }
+        .payment-option .payment-desc{
+            font-size:11px;
+            color:var(--gray-text);
+            font-weight:500;
+            text-align:center;
+            line-height:1.4;
+        }
+        .payment-option.selected{
+            border-color:var(--primary-orange);
+            background:linear-gradient(135deg,rgba(255,122,0,0.12),rgba(255,122,0,0.03));
+            box-shadow:0 0 0 3px rgba(255,122,0,0.15);
+        }
+        .payment-option.selected .payment-title{color:var(--primary-orange)}
+
+        .ride-summary-mini{
+            background:rgba(255,255,255,0.03);
+            border:1px solid rgba(255,255,255,0.06);
+            border-radius:var(--border-radius-md);
+            padding:14px;
+            margin-bottom:18px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        }
+        .ride-summary-mini-label{
+            font-size:11px;
+            color:var(--gray-text);
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+            font-weight:600;
+        }
+        .ride-summary-mini-value{
+            font-size:18px;
+            font-weight:800;
+            color:var(--primary-orange);
+        }
+
         .wallet-card-premium{background:linear-gradient(135deg,#ff7a00 0%,#ff4500 50%,#cc2900 100%);border-radius:var(--border-radius-lg);padding:24px;margin-bottom:22px;position:relative;overflow:hidden;box-shadow:0 10px 30px var(--primary-orange-glow);border:1px solid rgba(255,255,255,0.15)}
+        .wallet-card-premium.negative{background:linear-gradient(135deg,#ef4444 0%,#b91c1c 50%,#7f1d1d 100%);box-shadow:0 10px 30px var(--red-glow)}
         .wallet-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;position:relative;z-index:2}
         .wallet-brand{font-size:14px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:1px;text-transform:uppercase}
         .wallet-balance{font-size:36px;font-weight:800;color:var(--white);letter-spacing:-1px;text-shadow:0 2px 8px rgba(0,0,0,0.3)}
@@ -210,6 +345,59 @@
         .wallet-info-item{display:flex;flex-direction:column;gap:2px}
         .wallet-info-label{font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
         .wallet-info-value{font-size:14px;color:var(--white);font-weight:700}
+
+        .commission-summary-card{
+            background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.04));
+            border:1px solid rgba(139,92,246,0.3);
+            border-radius:var(--border-radius-lg);
+            padding:18px;
+            margin-bottom:22px;
+            position:relative;
+            overflow:hidden;
+        }
+        .commission-summary-header{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-bottom:14px;
+        }
+        .commission-summary-header i{
+            color:var(--purple);
+            font-size:16px;
+        }
+        .commission-summary-title{
+            font-size:12px;
+            font-weight:700;
+            color:var(--purple);
+            text-transform:uppercase;
+            letter-spacing:0.8px;
+        }
+        .commission-summary-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:12px;
+        }
+        .commission-summary-item{
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+        }
+        .commission-summary-label{
+            font-size:10px;
+            color:var(--gray-text);
+            text-transform:uppercase;
+            letter-spacing:0.5px;
+            font-weight:600;
+        }
+        .commission-summary-value{
+            font-size:18px;
+            font-weight:800;
+            color:var(--white);
+            letter-spacing:-0.3px;
+        }
+        .commission-summary-value.highlight{color:var(--purple)}
+        .commission-summary-value.green{color:var(--green-online)}
+
         .section-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
         .section-title{font-size:16px;font-weight:700;color:var(--white);letter-spacing:-0.3px;display:flex;align-items:center;gap:8px}
         .section-title i{color:var(--primary-orange);font-size:14px}
@@ -219,6 +407,7 @@
         .transaction-icon{width:38px;height:38px;border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0}
         .transaction-icon.positive{background:rgba(34,197,94,0.15);color:var(--green-online)}
         .transaction-icon.negative{background:rgba(239,68,68,0.15);color:var(--red)}
+        .transaction-icon.commission{background:rgba(139,92,246,0.15);color:var(--purple)}
         .transaction-icon i{font-size:14px}
         .transaction-details{flex:1;min-width:0}
         .transaction-title{font-size:14px;font-weight:600;color:var(--white);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -226,6 +415,7 @@
         .transaction-amount{font-size:15px;font-weight:700;flex-shrink:0}
         .transaction-amount.positive{color:var(--green-online)}
         .transaction-amount.negative{color:var(--red)}
+        .transaction-amount.commission{color:var(--purple)}
         .history-section{margin-bottom:24px}
         .history-section-title{font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px;display:flex;align-items:center;gap:8px}
         .ride-card-history{background:var(--bg-surface);border:1px solid rgba(255,255,255,0.05);border-radius:var(--border-radius-md);padding:16px;margin-bottom:10px;transition:all 0.2s}
@@ -243,8 +433,11 @@
         .status-badge.activo{background:rgba(59,130,246,0.15);color:var(--blue);border:1px solid rgba(59,130,246,0.3)}
         .status-badge.llegado_origen{background:rgba(245,158,11,0.15);color:var(--yellow);border:1px solid rgba(245,158,11,0.3)}
         .status-badge.pendiente{background:rgba(156,163,175,0.15);color:var(--gray-text);border:1px solid rgba(156,163,175,0.3)}
-        .history-card-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05)}
-        .history-meta{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--gray-text);font-weight:500}
+        .payment-tag{font-size:10px;font-weight:700;padding:4px 10px;border-radius:var(--border-radius-full);display:inline-flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:0.4px}
+        .payment-tag.efectivo{background:rgba(34,197,94,0.15);color:var(--green-online);border:1px solid rgba(34,197,94,0.3)}
+        .payment-tag.qr{background:rgba(139,92,246,0.15);color:var(--purple);border:1px solid rgba(139,92,246,0.3)}
+        .history-card-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05);gap:10px;flex-wrap:wrap}
+        .history-meta{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--gray-text);font-weight:500;flex-wrap:wrap}
         .history-price{font-size:16px;font-weight:800;color:var(--primary-orange)}
         #view-chat.active{display:flex;flex-direction:column;flex:1;overflow:hidden}
         .chat-container{display:flex;flex-direction:column;flex:1;background:var(--bg-black);width:100%}
@@ -378,6 +571,7 @@
             <span><span class="dot" id="statusCompassDot"></span> Brújula: <b id="statusCompassVal">---</b></span>
             <span><span class="dot" id="statusZoomDot"></span> Zoom: <b id="statusZoomVal">0</b></span>
             <span><span class="dot" id="statusBrowsingDot"></span> Browse: <b id="statusBrowsingVal">off</b></span>
+            <span><span class="dot" id="statusBalanceDot"></span> Saldo: <b id="statusBalanceVal">0</b></span>
         </div>
     </div>
     <div class="toast" id="toast"><i class="fas fa-check-circle"></i><span id="toastText">Mensaje</span></div>
@@ -532,6 +726,7 @@
                     </div>
                 </div>
             </header>
+
             <section class="status-card offline" id="statusCard">
                 <div class="status-content">
                     <div class="status-icon-box"><i class="fas fa-motorcycle"></i></div>
@@ -543,11 +738,21 @@
                 </div>
                 <label class="switch"><input type="checkbox" id="toggleSwitch"><span class="slider"></span></label>
             </section>
+
+            <div class="balance-banner ok" id="balanceBanner">
+                <i class="fas fa-wallet" id="balanceBannerIcon"></i>
+                <div class="balance-content">
+                    <div class="balance-title" id="balanceBannerTitle">Saldo: Bs 0.00</div>
+                    <div class="balance-subtitle" id="balanceBannerSubtitle">≈ 0 viajes disponibles</div>
+                </div>
+            </div>
+
             <section class="stats-grid">
                 <div class="stat-item"><div class="stat-icon-circle"><i class="fas fa-route"></i></div><div class="stat-label">Viajes Hoy</div><div class="stat-value" id="statViajes">0</div></div>
-                <div class="stat-item"><div class="stat-icon-circle"><i class="fas fa-dollar-sign"></i></div><div class="stat-label">Ganancia</div><div class="stat-value" id="statGanancias">0</div></div>
+                <div class="stat-item"><div class="stat-icon-circle green" id="statBalanceIcon"><i class="fas fa-wallet"></i></div><div class="stat-label">Saldo</div><div class="stat-value" id="statSaldo">Bs 0</div></div>
                 <div class="stat-item"><div class="stat-icon-circle"><i class="fas fa-clock"></i></div><div class="stat-label">Horas</div><div class="stat-value" id="statHoras">0h</div></div>
             </section>
+
             <section class="online-card">
                 <img src="banne.png" class="banner-img" alt="Banner" onerror="this.src='https://via.placeholder.com/400x150/161616/ff7a00?text=Moto+Movil'">
             </section>
@@ -592,15 +797,34 @@
 
         <div id="view-billetera" class="content-area view">
             <h2 style="margin-bottom:20px;font-size:24px;font-weight:800;">Billetera</h2>
-            <div class="wallet-card-premium">
+
+            <div class="wallet-card-premium" id="walletCard">
                 <div class="wallet-header"><div class="wallet-brand">MOTO <span>MÓVIL</span></div></div>
                 <div class="wallet-label">Saldo disponible</div>
                 <div class="wallet-balance" id="walletBalance">Bs 0.00</div>
                 <div class="wallet-footer">
                     <div class="wallet-info-item"><span class="wallet-info-label">Titular</span><span class="wallet-info-value" id="walletHolder">Conductor</span></div>
-                    <div class="wallet-info-item"><span class="wallet-info-label">Estado</span><span class="wallet-info-value">● Activa</span></div>
+                    <div class="wallet-info-item"><span class="wallet-info-label">Estado</span><span class="wallet-info-value" id="walletStatus">● Activa</span></div>
                 </div>
             </div>
+
+            <div class="commission-summary-card">
+                <div class="commission-summary-header">
+                    <i class="fas fa-percentage"></i>
+                    <div class="commission-summary-title">Resumen de comisiones hoy</div>
+                </div>
+                <div class="commission-summary-grid">
+                    <div class="commission-summary-item">
+                        <div class="commission-summary-label">Comisión descontada</div>
+                        <div class="commission-summary-value highlight" id="summaryCommissionToday">Bs 0.00</div>
+                    </div>
+                    <div class="commission-summary-item">
+                        <div class="commission-summary-label">Cobrado (efectivo + QR)</div>
+                        <div class="commission-summary-value green" id="summaryCollectedToday">Bs 0.00</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="section-title-row"><div class="section-title"><i class="fas fa-receipt"></i> Movimientos recientes</div></div>
             <div class="transaction-list" id="transactionList"><div class="empty-state"><i class="fas fa-receipt"></i><h4>Sin movimientos</h4></div></div>
         </div>
@@ -691,6 +915,49 @@
         </div>
     </div>
 
+    <!-- v1.6: MODAL DE MÉTODO DE PAGO -->
+    <div class="ride-modal" id="paymentMethodModal">
+        <div class="ride-card">
+            <div class="drag-handle"></div>
+            <div class="ride-header">
+                <div class="ride-title-section">
+                    <div class="ride-icon-box"><i class="fas fa-hand-holding-dollar"></i></div>
+                    <div>
+                        <div class="ride-title">¿Cómo te pagó el pasajero?</div>
+                        <div class="ride-subtitle">Marca el método antes de finalizar</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ride-summary-mini">
+                <span class="ride-summary-mini-label">Total del viaje</span>
+                <span class="ride-summary-mini-value" id="paymentModalTotal">Bs 0.00</span>
+            </div>
+
+            <div class="payment-options">
+                <div class="payment-option" data-method="efectivo" onclick="selectPaymentMethod('efectivo')">
+                    <div class="payment-icon"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="payment-title">Efectivo</div>
+                    <div class="payment-desc">Cobrado en mano</div>
+                </div>
+                <div class="payment-option" data-method="qr" onclick="selectPaymentMethod('qr')">
+                    <div class="payment-icon"><i class="fas fa-qrcode"></i></div>
+                    <div class="payment-title">QR</div>
+                    <div class="payment-desc">Transferencia / QR personal</div>
+                </div>
+            </div>
+
+            <div class="ride-actions">
+                <button class="ride-btn accept" id="confirmPaymentBtn" onclick="confirmPaymentAndComplete()" disabled style="opacity:0.5;">
+                    <i class="fas fa-check"></i> Confirmar y finalizar
+                </button>
+                <button class="ride-btn reject" onclick="cancelPaymentModal()">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const PushNotifications = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications) || null;
@@ -725,6 +992,10 @@
         const ZOOM_OUT_THRESHOLD = 15.3;
         let browsingMode = false;
         let browsingTimer = null;
+
+        // ============ v1.6: UMBRALES DE ALERTA DE SALDO ============
+        const LOW_BALANCE_TRIPS_WARNING = 5;
+        const LOW_BALANCE_TRIPS_URGENT = 2;
 
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
@@ -763,6 +1034,7 @@
             const compassDot = document.getElementById('statusCompassDot'), compassVal = document.getElementById('statusCompassVal');
             const zoomDot = document.getElementById('statusZoomDot'), zoomVal = document.getElementById('statusZoomVal');
             const browsingDot = document.getElementById('statusBrowsingDot'), browsingVal = document.getElementById('statusBrowsingVal');
+            const balanceDot = document.getElementById('statusBalanceDot'), balanceVal = document.getElementById('statusBalanceVal');
             if (onlineDot && onlineVal) { onlineVal.textContent = String(isDriverOnline); onlineDot.className = `dot ${isDriverOnline ? 'green' : 'red'}`; }
             if (rideDot && rideVal) { rideVal.textContent = currentRideId ? currentRideId.substring(0,8) : 'null'; rideDot.className = `dot ${currentRideId ? 'green' : 'red'}`; }
             if (pendingDot && pendingVal) { pendingVal.textContent = pendingRide ? pendingRide.id.substring(0,8) : 'null'; pendingDot.className = `dot ${pendingRide ? 'orange' : 'red'}`; }
@@ -778,6 +1050,11 @@
             if (browsingDot && browsingVal) {
                 browsingVal.textContent = browsingMode ? 'ON' : 'off';
                 browsingDot.className = `dot ${browsingMode ? 'orange' : 'red'}`;
+            }
+            if (balanceDot && balanceVal) {
+                const b = window.driverBalance || 0;
+                balanceVal.textContent = `Bs ${b.toFixed(2)}`;
+                balanceDot.className = `dot ${b > 5 ? 'green' : (b > 0 ? 'orange' : 'red')}`;
             }
         }
         function toggleDebugPanel() {
@@ -1157,6 +1434,15 @@
         let onlineSessionStart = null;
         let statsRefreshInterval = null;
 
+        // ============ v1.6: ESTADO DE SALDO ============
+        window.driverBalance = 0;
+        window.driverCommissionRate = 0.10;
+        window.driverBasePrice = 4.00;
+        window.driverRemainingTrips = 0;
+        window.pendingPaymentMethod = null;
+        window.pendingRidePrice = 0;
+        let lastWarningShownTrips = null;
+
         window.currentGpsAccuracy = 0;
 
         if ('speechSynthesis' in window) {
@@ -1523,9 +1809,108 @@
         }
 
         // ═══════════════════════════════════════════════════════════
-        //  💰 v1.5 — GANANCIA NETA (después de comisión)
-        //  Lee de platform_commissions (fuente de verdad del neto real)
+        //  💰 v1.6 — SALDO, VIAJES RESTANTES Y ALERTAS
         // ═══════════════════════════════════════════════════════════
+        async function loadRemainingTrips() {
+            if (!currentDriverId) return;
+            try {
+                // RPC con fallback
+                const { data, error } = await supabaseClient.rpc('get_remaining_trips', { p_driver_id: currentDriverId });
+
+                if (error || !data || !data.length) {
+                    // Fallback: calcular manualmente
+                    const { data: wallet } = await supabaseClient
+                        .from('wallets').select('balance')
+                        .eq('driver_id', currentDriverId).maybeSingle();
+                    const { data: config } = await supabaseClient
+                        .from('pricing_config').select('commission_rate, base_price')
+                        .eq('is_active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+
+                    const balance = parseFloat(wallet?.balance) || 0;
+                    const rate = parseFloat(config?.commission_rate) || 0.10;
+                    const basePrice = parseFloat(config?.base_price) || 4.00;
+                    const commissionPerRide = Math.max(0.01, Math.round(basePrice * rate * 100) / 100);
+                    const remaining = balance <= 0 ? 0 : Math.floor(balance / commissionPerRide);
+
+                    window.driverBalance = balance;
+                    window.driverCommissionRate = rate;
+                    window.driverBasePrice = basePrice;
+                    window.driverRemainingTrips = remaining;
+                } else {
+                    const r = data[0];
+                    window.driverBalance = parseFloat(r.balance) || 0;
+                    window.driverCommissionRate = parseFloat(r.commission_rate) || 0.10;
+                    window.driverBasePrice = parseFloat(r.base_price) || 4.00;
+                    window.driverRemainingTrips = parseInt(r.remaining_trips) || 0;
+                }
+
+                updateBalanceBanner();
+                updateStatsSaldo();
+                updateDebugStatus();
+            } catch (e) {
+                dlog('⚠️ Error cargando saldo: ' + e.message, 'warning');
+            }
+        }
+
+        function updateBalanceBanner() {
+            const banner = document.getElementById('balanceBanner');
+            const icon = document.getElementById('balanceBannerIcon');
+            const title = document.getElementById('balanceBannerTitle');
+            const subtitle = document.getElementById('balanceBannerSubtitle');
+
+            if (!banner) return;
+            const b = window.driverBalance;
+            const trips = window.driverRemainingTrips;
+
+            banner.classList.remove('ok', 'warning', 'urgent', 'negative', 'hidden');
+
+            if (b < 0) {
+                banner.classList.add('negative');
+                icon.className = 'fas fa-exclamation-circle';
+                title.textContent = `Deuda: Bs ${Math.abs(b).toFixed(2)}`;
+                subtitle.textContent = `Se descontará en tu próxima recarga`;
+                if (lastWarningShownTrips !== 'negative') {
+                    showToast(`Deuda: Bs ${Math.abs(b).toFixed(2)}. Recarga pronto.`, 'exclamation-circle');
+                    lastWarningShownTrips = 'negative';
+                }
+            } else if (trips <= LOW_BALANCE_TRIPS_URGENT) {
+                banner.classList.add('urgent');
+                icon.className = 'fas fa-exclamation-triangle';
+                title.textContent = `🚨 Solo ≈ ${trips} viajes disponibles`;
+                subtitle.textContent = `Saldo: Bs ${b.toFixed(2)} · Recarga urgente`;
+                if (lastWarningShownTrips !== `urgent-${trips}`) {
+                    showToast(`🚨 Solo ${trips} viajes · Recarga urgente`, 'exclamation-triangle');
+                    lastWarningShownTrips = `urgent-${trips}`;
+                }
+            } else if (trips <= LOW_BALANCE_TRIPS_WARNING) {
+                banner.classList.add('warning');
+                icon.className = 'fas fa-exclamation-circle';
+                title.textContent = `⚠️ Te quedan ≈ ${trips} viajes`;
+                subtitle.textContent = `Saldo: Bs ${b.toFixed(2)} · Recarga pronto`;
+                if (lastWarningShownTrips !== `warn-${trips}`) {
+                    showToast(`⚠️ Te quedan ≈ ${trips} viajes · Recarga pronto`, 'exclamation-circle');
+                    lastWarningShownTrips = `warn-${trips}`;
+                }
+            } else {
+                banner.classList.add('ok');
+                icon.className = 'fas fa-wallet';
+                title.textContent = `Saldo: Bs ${b.toFixed(2)}`;
+                subtitle.textContent = `≈ ${trips} viajes disponibles`;
+                lastWarningShownTrips = null;
+            }
+        }
+
+        function updateStatsSaldo() {
+            const el = document.getElementById('statSaldo');
+            if (el) el.textContent = `Bs ${window.driverBalance.toFixed(0)}`;
+            const iconWrap = document.getElementById('statBalanceIcon');
+            if (iconWrap) {
+                iconWrap.classList.remove('green', 'red');
+                if (window.driverBalance > 5) iconWrap.classList.add('green');
+                else iconWrap.classList.add('red');
+            }
+        }
+
         async function loadDriverStats() {
             if (!currentDriverId) return;
             try {
@@ -1533,28 +1918,30 @@
                 hoy.setHours(0, 0, 0, 0);
                 const hoyISO = hoy.toISOString();
 
-                // ✅ NUEVO: leer de platform_commissions → driver_amount ya viene neto
-                const { data: commissions, error } = await supabaseClient
-                    .from('platform_commissions')
-                    .select('driver_amount, created_at')
+                // Viajes completados hoy
+                const { data: ridesHoy } = await supabaseClient
+                    .from('rides')
+                    .select('id, price, payment_method, status, completed_at')
                     .eq('driver_id', currentDriverId)
-                    .gte('created_at', hoyISO);
+                    .eq('status', 'completado')
+                    .gte('completed_at', hoyISO);
 
-                if (error) throw error;
-
-                const lista = Array.isArray(commissions) ? commissions : [];
+                const lista = Array.isArray(ridesHoy) ? ridesHoy : [];
                 const viajesCount = lista.length;
-                const gananciaTotal = lista.reduce((sum, c) => sum + (parseFloat(c.driver_amount) || 0), 0);
-                const horasSegundos = getCurrentOnlineSeconds();
+                const totalCobrado = lista.reduce((sum, r) => sum + (parseFloat(r.price) || 0), 0);
+                const comisionHoy = totalCobrado * window.driverCommissionRate;
 
                 const elViajes = document.getElementById('statViajes');
-                const elGanancia = document.getElementById('statGanancias');
                 const elHoras = document.getElementById('statHoras');
                 if (elViajes) elViajes.textContent = String(viajesCount);
-                if (elGanancia) elGanancia.textContent = `Bs ${gananciaTotal.toFixed(0)}`;
-                if (elHoras) elHoras.textContent = formatOnlineHours(horasSegundos);
+                if (elHoras) elHoras.textContent = formatOnlineHours(getCurrentOnlineSeconds());
 
-                dlog(`📊 Stats → ${viajesCount} viajes · Bs ${gananciaTotal.toFixed(0)} neto · ${formatOnlineHours(horasSegundos)}`, 'info');
+                const sumCom = document.getElementById('summaryCommissionToday');
+                const sumCol = document.getElementById('summaryCollectedToday');
+                if (sumCom) sumCom.textContent = `Bs ${comisionHoy.toFixed(2)}`;
+                if (sumCol) sumCol.textContent = `Bs ${totalCobrado.toFixed(2)}`;
+
+                dlog(`📊 Hoy → ${viajesCount} viajes · cobrado Bs ${totalCobrado.toFixed(2)} · comisión Bs ${comisionHoy.toFixed(2)}`, 'info');
             } catch (e) {
                 dlog('❌ Error cargando stats: ' + e.message, 'error');
             }
@@ -1566,6 +1953,7 @@
                 const horasEl = document.getElementById('statHoras');
                 if (horasEl) horasEl.textContent = formatOnlineHours(getCurrentOnlineSeconds());
                 await loadDriverStats();
+                await loadRemainingTrips();
             }, 30000);
         }
 
@@ -1705,6 +2093,7 @@
                 loadWalletData();
                 loadActiveRide();
                 loadDriverStats();
+                loadRemainingTrips();
                 startStatsAutoRefresh();
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
             } else if (currentDriverData) {
@@ -1869,9 +2258,9 @@
                 });
             }
             if (tabId === 'chat') loadChatMessages();
-            if (tabId === 'billetera') loadWalletData();
+            if (tabId === 'billetera') { loadWalletData(); loadRemainingTrips(); }
             if (tabId === 'historial') loadHistorial();
-            if (tabId === 'inicio') loadDriverStats();
+            if (tabId === 'inicio') { loadDriverStats(); loadRemainingTrips(); }
         }
 
         function getMapLocalHour(date = new Date()) {
@@ -2071,6 +2460,7 @@
                     }
                     if (esParaMi && ride.status === 'completado') {
                         loadDriverStats().catch(()=>{});
+                        loadRemainingTrips().catch(()=>{});
                     }
                     if (document.getElementById('view-historial')?.classList.contains('active')) loadHistorial();
                 })
@@ -2488,26 +2878,102 @@
             speakInstruction('Iniciando viaje al destino');
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  v1.6 — MODAL DE MÉTODO DE PAGO
+        // ═══════════════════════════════════════════════════════════
+        function selectPaymentMethod(method) {
+            window.pendingPaymentMethod = method;
+            document.querySelectorAll('.payment-option').forEach(el => {
+                el.classList.toggle('selected', el.getAttribute('data-method') === method);
+            });
+            const btn = document.getElementById('confirmPaymentBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+
+        function cancelPaymentModal() {
+            document.getElementById('paymentMethodModal').classList.remove('active');
+            window.pendingPaymentMethod = null;
+        }
+
+        async function confirmPaymentAndComplete() {
+            if (!window.pendingPaymentMethod) return;
+            if (!currentRideId) return;
+
+            const method = window.pendingPaymentMethod;
+            const btn = document.getElementById('confirmPaymentBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;margin:0;border-width:2px;"></div> Finalizando...';
+
+            try {
+                const { error } = await supabaseClient.from('rides').update({
+                    status: 'completado',
+                    completed_at: new Date().toISOString(),
+                    payment_method: method
+                }).eq('id', currentRideId);
+
+                if (error) throw error;
+
+                document.getElementById('paymentMethodModal').classList.remove('active');
+                window.pendingPaymentMethod = null;
+
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+                const methodLabel = method === 'qr' ? 'QR' : 'efectivo';
+                showToast(`¡Viaje completado! Cobrado en ${methodLabel}`, 'check-circle');
+                speakInstruction('Viaje completado');
+
+                setTimeout(() => { loadWalletData().catch(()=>{}); }, 900);
+                setTimeout(() => { loadDriverStats().catch(()=>{}); }, 1200);
+                setTimeout(() => { loadRemainingTrips().catch(()=>{}); }, 1400);
+
+                setTimeout(() => { resetRideState(); }, 800);
+            } catch (e) {
+                dlog('❌ Error completando viaje: ' + e.message, 'error');
+                showToast('Error al completar', 'exclamation-circle');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Confirmar y finalizar';
+            }
+        }
+
         async function finishRide(completed) {
             if (!currentRideId) return;
+
             if (completed) {
+                // Validar distancia al destino
                 if (!currentPosition) return showToast('Activa el GPS', 'exclamation-triangle');
-                const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng').eq('id', currentRideId).single();
+                const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng, price').eq('id', currentRideId).single();
                 if (ride && ride.destination_lat && ride.destination_lng) {
                     const dist = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.destination_lat, ride.destination_lng);
                     if (dist > 200) { showToast(`Estás a ${Math.round(dist)} m del destino`, 'exclamation-triangle'); return; }
                 }
+
+                // v1.6: Abrir modal de método de pago
+                window.pendingPaymentMethod = null;
+                window.pendingRidePrice = parseFloat(ride?.price) || 0;
+                document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('selected'));
+                const totalEl = document.getElementById('paymentModalTotal');
+                if (totalEl) totalEl.textContent = `Bs ${window.pendingRidePrice.toFixed(2)}`;
+                const btn = document.getElementById('confirmPaymentBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar y finalizar';
+                }
+                document.getElementById('paymentMethodModal').classList.add('active');
+                return;
             }
-            const newStatus = completed ? 'completado' : 'no_completado';
-            const { error } = await supabaseClient.from('rides').update({ status: newStatus, completed_at: completed ? new Date().toISOString() : null, cancelled_at: completed ? null : new Date().toISOString() }).eq('id', currentRideId);
+
+            // Si NO se completó → comportamiento normal
+            const { error } = await supabaseClient.from('rides').update({
+                status: 'no_completado',
+                completed_at: null,
+                cancelled_at: new Date().toISOString()
+            }).eq('id', currentRideId);
             if (error) return showToast('Error: ' + error.message, 'exclamation-circle');
             if (window.speechSynthesis) window.speechSynthesis.cancel();
-            if (completed) {
-                showToast('¡Viaje completado!', 'check-circle');
-                speakInstruction('Viaje completado');
-                setTimeout(() => { loadWalletData().catch(()=>{}); }, 900);
-                setTimeout(() => { loadDriverStats().catch(()=>{}); }, 1200);
-            } else showToast('Viaje no completado', 'info');
+            showToast('Viaje no completado', 'info');
             resetRideState();
         }
 
@@ -2767,6 +3233,7 @@
             } else {
                 stopOnlineSession();
                 loadDriverStats();
+                loadRemainingTrips();
             }
 
             if (isDriverOnline) {
@@ -2797,6 +3264,7 @@
                 } catch (e) {}
                 await loadActiveRide();
                 loadDriverStats();
+                loadRemainingTrips();
                 setTimeout(async () => {
                     if (!currentRideId && !pendingRide && isDriverOnline) {
                         const { data } = await supabaseClient
@@ -3032,6 +3500,9 @@
             catch (e) {}
         }
 
+        // ═══════════════════════════════════════════════════════════
+        //  v1.6 — HISTORIAL CON ETIQUETA DE PAGO
+        // ═══════════════════════════════════════════════════════════
         async function loadHistorial() {
             if (!currentDriverId) return;
             const { data: activeRides } = await supabaseClient.from('rides').select('id, origin_address, destination_address, price, status, created_at').eq('driver_id', currentDriverId).in('status', ['pendiente','aceptado','llegado_origen','en_curso']).order('created_at', { ascending: false });
@@ -3043,14 +3514,19 @@
                 const d = new Date(r.created_at), ts = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), ds = d.toLocaleDateString([], {day:'2-digit',month:'short'});
                 ac.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${escapeHtml(r.origin_address||'Origen')}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${escapeHtml(r.destination_address||'Destino')}</span></div></div><span class="status-badge ${sc}">${escapeHtml(r.status.replace('_',' '))}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${escapeHtml(ds)}</span><span><i class="fas fa-clock"></i> ${escapeHtml(ts)}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
             });
-            const { data: completedRides } = await supabaseClient.from('rides').select('id, origin_address, destination_address, price, status, created_at').eq('driver_id', currentDriverId).in('status', ['completado','no_completado','cancelado','rechazado']).order('created_at', { ascending: false }).limit(30);
+            const { data: completedRides } = await supabaseClient.from('rides').select('id, origin_address, destination_address, price, status, created_at, payment_method').eq('driver_id', currentDriverId).in('status', ['completado','no_completado','cancelado','rechazado']).order('created_at', { ascending: false }).limit(30);
             const cc = document.getElementById('completedRidesList');
             cc.innerHTML = '';
             if (!completedRides || completedRides.length === 0) cc.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h4>No hay viajes en el historial</h4></div>';
             else completedRides.forEach(r => {
                 const bc = r.status === 'completado' ? 'completado' : (r.status === 'no_completado' ? 'no_completado' : '');
                 const d = new Date(r.created_at), ts = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), ds = d.toLocaleDateString([], {day:'2-digit',month:'short'});
-                cc.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${escapeHtml(r.origin_address||'Origen')}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${escapeHtml(r.destination_address||'Destino')}</span></div></div><span class="status-badge ${bc}">${escapeHtml(r.status.replace('_',' '))}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${escapeHtml(ds)}</span><span><i class="fas fa-clock"></i> ${escapeHtml(ts)}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
+                let paymentTag = '';
+                if (r.status === 'completado' && r.payment_method) {
+                    if (r.payment_method === 'efectivo') paymentTag = '<span class="payment-tag efectivo"><i class="fas fa-money-bill-wave"></i> Efectivo</span>';
+                    else if (r.payment_method === 'qr') paymentTag = '<span class="payment-tag qr"><i class="fas fa-qrcode"></i> QR</span>';
+                }
+                cc.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${escapeHtml(r.origin_address||'Origen')}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${escapeHtml(r.destination_address||'Destino')}</span></div></div><span class="status-badge ${bc}">${escapeHtml(r.status.replace('_',' '))}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${escapeHtml(ds)}</span><span><i class="fas fa-clock"></i> ${escapeHtml(ts)}</span>${paymentTag}</div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
             });
         }
 
@@ -3103,7 +3579,29 @@
         async function loadWalletData() {
             if (!currentDriverId) return;
             const { data: wallet } = await supabaseClient.from('wallets').select('balance').eq('driver_id', currentDriverId).maybeSingle();
-            if (wallet) document.getElementById('walletBalance').textContent = `Bs ${parseFloat(wallet.balance||0).toFixed(2)}`;
+            const balance = parseFloat(wallet?.balance) || 0;
+            window.driverBalance = balance;
+
+            const balanceEl = document.getElementById('walletBalance');
+            const statusEl = document.getElementById('walletStatus');
+            const cardEl = document.getElementById('walletCard');
+            if (balanceEl) {
+                balanceEl.textContent = `Bs ${balance.toFixed(2)}`;
+            }
+            if (cardEl) cardEl.classList.toggle('negative', balance < 0);
+            if (statusEl) {
+                if (balance < 0) {
+                    statusEl.innerHTML = '● Con deuda';
+                    statusEl.style.color = 'rgba(255,255,255,0.95)';
+                } else if (balance <= 2) {
+                    statusEl.innerHTML = '● Saldo bajo';
+                    statusEl.style.color = 'rgba(255,255,255,0.95)';
+                } else {
+                    statusEl.innerHTML = '● Activa';
+                    statusEl.style.color = 'rgba(255,255,255,0.95)';
+                }
+            }
+
             const { data: txs } = await supabaseClient.from('wallet_transactions').select('*').eq('driver_id', currentDriverId).order('created_at', { ascending: false }).limit(20);
             const list = document.getElementById('transactionList');
             list.innerHTML = '';
@@ -3111,9 +3609,20 @@
             txs.forEach(tx => {
                 const div = document.createElement('div');
                 div.className = 'transaction-item';
-                const pos = tx.amount >= 0, icon = pos ? 'fa-arrow-down' : 'fa-arrow-up';
+                const amount = parseFloat(tx.amount);
+                const isCommission = tx.type === 'comision';
+                const isPositive = amount >= 0;
+                let iconClass = isPositive ? 'positive' : 'negative';
+                let icon = isPositive ? 'fa-arrow-down' : 'fa-arrow-up';
+                let amountClass = isPositive ? 'positive' : 'negative';
+                if (isCommission) {
+                    iconClass = 'commission';
+                    icon = 'fa-percentage';
+                    amountClass = 'commission';
+                }
                 const ds = new Date(tx.created_at).toLocaleDateString([], {day:'2-digit',month:'short'});
-                div.innerHTML = `<div class="transaction-info"><div class="transaction-icon ${pos?'positive':'negative'}"><i class="fas ${icon}"></i></div><div class="transaction-details"><div class="transaction-title">${escapeHtml(tx.description||tx.type)}</div><div class="transaction-date">${escapeHtml(ds)}</div></div></div><div class="transaction-amount ${pos?'positive':'negative'}">${pos?'+':''}Bs ${parseFloat(tx.amount).toFixed(2)}</div>`;
+                div.innerHTML = `<div class="transaction-info"><div class="transaction-icon ${iconClass}"><i class="fas ${icon}"></i></div><div class="transaction-details"><div class="transaction-title">${escapeHtml(tx.description||tx.type)}</div><div class="transaction-date">${escapeHtml(ds)}</div></div></div><div class="transaction-amount ${amountClass}">${isPositive?'+':''}Bs ${Math.abs(amount).toFixed(2)}</div>`;
+                list.appendChild(el => {});
                 list.appendChild(div);
             });
         }
@@ -3180,13 +3689,14 @@
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
                 updateGreeting();
                 loadDriverStats();
+                loadRemainingTrips();
                 try { if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') notificationAudioCtx.resume(); } catch (e) {}
             }
         });
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v1.5 — Comisión dinámica + ganancia neta real + stats desde platform_commissions', 'success');
+        dlog('App iniciada. v1.6 — Modelo prepago + método de pago + alertas de saldo', 'success');
     </script>
 </body>
 </html>

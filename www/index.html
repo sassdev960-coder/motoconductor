@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V6.8 - HYBRID CAMERA + SMOOTH REROUTE + SOFT SNAP -->
+<!-- ROUTE STREET-FOLLOWING V1.4 - XSS HARDENED + LIVE STATS + POOL FILTER -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -701,11 +701,6 @@
         const OFF_ROUTE_THRESHOLD_M = 45;
         const OFF_ROUTE_DURATION_MS = 8000;
         const REROUTE_COOLDOWN_MS = 20000;
-
-        // 🎯 Radio máximo (metros) para mostrar viajes del POOL ABIERTO.
-        // Las asignaciones directas (ride.driver_id === yo) NO se filtran nunca.
-        // Si el conductor está en Santa Cruz y el viaje está en Montero (~40 km),
-        // la alerta ya no aparece porque supera este umbral.
         const MAX_POOL_DISTANCE_M = 500;
 
         const NAV_ZOOM_MIN = 16.8;
@@ -722,7 +717,7 @@
         let navigationCameraBearing = null;
 
         const MAP_STYLE_DAY = 'mapbox://styles/mapbox/streets-v12';
-        const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/navigation-night-v1';
+        const MAP_STYLE_NIGHT = 'mapbox://styles/mapbox/dark-v11';
         let currentMapTheme = null;
         let mapThemeTimer = null;
 
@@ -730,6 +725,16 @@
         const ZOOM_OUT_THRESHOLD = 15.3;
         let browsingMode = false;
         let browsingTimer = null;
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         let logCount = 0, debugPanelOpen = false;
         function dlog(msg, type = 'info') {
@@ -739,7 +744,7 @@
             const time = new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
             const div = document.createElement('div');
             div.className = `debug-log ${type}`;
-            div.innerHTML = `<span class="time">[${time}]</span>${msg}`;
+            div.innerHTML = `<span class="time">[${time}]</span>${escapeHtml(msg)}`;
             logsEl.appendChild(div);
             logsEl.scrollTop = logsEl.scrollHeight;
             logCount++;
@@ -1149,6 +1154,9 @@
 
         let apLat = null, apLng = null, apSelfieFile = null;
 
+        let onlineSessionStart = null;
+        let statsRefreshInterval = null;
+
         window.currentGpsAccuracy = 0;
 
         if ('speechSynthesis' in window) {
@@ -1435,6 +1443,128 @@
             return true;
         }
 
+        function getTodayKey() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getHoursStorageKey() {
+            return `motocampeon_hours_${currentDriverId || 'anon'}_${getTodayKey()}`;
+        }
+
+        function getAccumulatedOnlineSeconds() {
+            try {
+                return parseInt(localStorage.getItem(getHoursStorageKey()) || '0', 10) || 0;
+            } catch { return 0; }
+        }
+
+        function saveAccumulatedOnlineSeconds(secs) {
+            try {
+                localStorage.setItem(getHoursStorageKey(), String(Math.max(0, Math.floor(secs))));
+            } catch {}
+        }
+
+        function startOnlineSession() {
+            if (onlineSessionStart) return;
+            onlineSessionStart = Date.now();
+            dlog('⏱️ Sesión online iniciada', 'info');
+            try { localStorage.setItem(`motocampeon_session_start_${currentDriverId}`, String(onlineSessionStart)); } catch {}
+        }
+
+        function stopOnlineSession() {
+            if (!onlineSessionStart) {
+                try {
+                    const saved = parseInt(localStorage.getItem(`motocampeon_session_start_${currentDriverId}`) || '0', 10);
+                    if (saved > 0) {
+                        const elapsed = Math.max(0, Math.floor((Date.now() - saved) / 1000));
+                        const sameDay = new Date(saved).toDateString() === new Date().toDateString();
+                        if (sameDay) {
+                            const total = getAccumulatedOnlineSeconds() + elapsed;
+                            saveAccumulatedOnlineSeconds(total);
+                        }
+                        localStorage.removeItem(`motocampeon_session_start_${currentDriverId}`);
+                    }
+                } catch {}
+                return;
+            }
+            const elapsed = Math.floor((Date.now() - onlineSessionStart) / 1000);
+            const total = getAccumulatedOnlineSeconds() + elapsed;
+            saveAccumulatedOnlineSeconds(total);
+            onlineSessionStart = null;
+            try { localStorage.removeItem(`motocampeon_session_start_${currentDriverId}`); } catch {}
+            dlog(`⏱️ Sesión online cerrada (+${elapsed}s, total hoy: ${total}s)`, 'info');
+        }
+
+        function getCurrentOnlineSeconds() {
+            let total = getAccumulatedOnlineSeconds();
+            if (onlineSessionStart) {
+                total += Math.floor((Date.now() - onlineSessionStart) / 1000);
+            } else {
+                try {
+                    const saved = parseInt(localStorage.getItem(`motocampeon_session_start_${currentDriverId}`) || '0', 10);
+                    if (saved > 0) {
+                        const sameDay = new Date(saved).toDateString() === new Date().toDateString();
+                        if (sameDay) {
+                            total += Math.floor((Date.now() - saved) / 1000);
+                        }
+                    }
+                } catch {}
+            }
+            return total;
+        }
+
+        function formatOnlineHours(seconds) {
+            if (!Number.isFinite(seconds) || seconds < 0) return '0h';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            if (h === 0 && m === 0) return '0h';
+            if (h === 0) return `${m}m`;
+            return `${h}h ${m}m`;
+        }
+
+        async function loadDriverStats() {
+            if (!currentDriverId) return;
+            try {
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                const hoyISO = hoy.toISOString();
+
+                const { data: ridesHoy, error } = await supabaseClient
+                    .from('rides')
+                    .select('price, status, completed_at')
+                    .eq('driver_id', currentDriverId)
+                    .eq('status', 'completado')
+                    .gte('completed_at', hoyISO);
+
+                if (error) throw error;
+
+                const lista = Array.isArray(ridesHoy) ? ridesHoy : [];
+                const viajesCount = lista.length;
+                const gananciaTotal = lista.reduce((sum, r) => sum + (parseFloat(r.price) || 0), 0);
+                const horasSegundos = getCurrentOnlineSeconds();
+
+                const elViajes = document.getElementById('statViajes');
+                const elGanancia = document.getElementById('statGanancias');
+                const elHoras = document.getElementById('statHoras');
+                if (elViajes) elViajes.textContent = String(viajesCount);
+                if (elGanancia) elGanancia.textContent = `Bs ${gananciaTotal.toFixed(0)}`;
+                if (elHoras) elHoras.textContent = formatOnlineHours(horasSegundos);
+
+                dlog(`📊 Stats → ${viajesCount} viajes · Bs ${gananciaTotal.toFixed(0)} · ${formatOnlineHours(horasSegundos)}`, 'info');
+            } catch (e) {
+                dlog('❌ Error cargando stats: ' + e.message, 'error');
+            }
+        }
+
+        function startStatsAutoRefresh() {
+            if (statsRefreshInterval) return;
+            statsRefreshInterval = setInterval(async () => {
+                const horasEl = document.getElementById('statHoras');
+                if (horasEl) horasEl.textContent = formatOnlineHours(getCurrentOnlineSeconds());
+                await loadDriverStats();
+            }, 30000);
+        }
+
         function showLogin() {
             document.getElementById('view-signup').classList.remove('active');
             document.getElementById('view-onboarding').classList.remove('active');
@@ -1570,6 +1700,8 @@
                 updateGreeting();
                 loadWalletData();
                 loadActiveRide();
+                loadDriverStats();
+                startStatsAutoRefresh();
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
             } else if (currentDriverData) {
                 document.getElementById('obFullName').value = currentDriverData.full_name || '';
@@ -1585,6 +1717,7 @@
             isDriverOnline = false;
             document.getElementById('toggleSwitch').checked = false;
             updateStatusCard(false);
+            stopOnlineSession();
             if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
             if (driverMarker) { driverMarker.remove(); driverMarker = null; }
             markerCurrentPos = null; markerTargetPos = null;
@@ -1681,11 +1814,13 @@
         }
 
         async function logout() {
+            stopOnlineSession();
             hideLoading();
             stopRideNotification();
             if (window.speechSynthesis) window.speechSynthesis.cancel();
             if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
             if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (statsRefreshInterval) { clearInterval(statsRefreshInterval); statsRefreshInterval = null; }
             if (currentDriverId) {
                 await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: false, latitude: null, longitude: null, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' });
             }
@@ -1732,6 +1867,7 @@
             if (tabId === 'chat') loadChatMessages();
             if (tabId === 'billetera') loadWalletData();
             if (tabId === 'historial') loadHistorial();
+            if (tabId === 'inicio') loadDriverStats();
         }
 
         function getMapLocalHour(date = new Date()) {
@@ -1802,8 +1938,8 @@
 
         function startAutomaticMapTheme() {
             if (mapThemeTimer) clearInterval(mapThemeTimer);
-            mapThemeTimer = setInterval(() => applyMapTheme(false), 30 * 1000);
-            applyMapTheme(false);
+            mapThemeTimer = setInterval(() => applyMapTheme(false), 60 * 1000);
+            applyMapTheme(true);
         }
 
         async function initMap(center = [-63.1821, -17.7833]) {
@@ -1889,9 +2025,8 @@
 
                 currentMapTheme = null;
                 startAutomaticMapTheme();
-                setTimeout(() => applyMapTheme(true), 250);
-                dlog(`🌙 Tema automático: ${currentMapTheme === 'night' ? 'noche' : 'día'}`, 'info');
-                dlog('✅ Mapa inicializado (con modo exploración)', 'success');
+                dlog(`🌓 Tema automático: ${isNightMapTime() ? 'noche (dark-v11)' : 'día (streets-v12)'}`, 'info');
+                dlog('✅ Mapa inicializado (modo exploración activo)', 'success');
                 return true;
             } catch (e) {
                 dlog('❌ Error initMap: ' + e.message, 'error');
@@ -1930,6 +2065,9 @@
                             if (!currentRideId && !pendingRide && !isRejecting) { showRideRequest(ride); }
                         }
                     }
+                    if (esParaMi && ride.status === 'completado') {
+                        loadDriverStats().catch(()=>{});
+                    }
                     if (document.getElementById('view-historial')?.classList.contains('active')) loadHistorial();
                 })
                 .subscribe((status) => { dlog('Realtime: ' + status, status === 'SUBSCRIBED' ? 'success' : 'error'); });
@@ -1966,18 +2104,6 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🎯 showRideRequest — CON FILTRO DE DISTANCIA PARA POOL ABIERTO
-        // ═══════════════════════════════════════════════════════════════
-        // Reglas:
-        //  • Si el viaje es una asignación directa (driver_id === yo)
-        //    → SIEMPRE se muestra (no se filtra por distancia).
-        //  • Si es un viaje del pool abierto (pendiente + sin dueño)
-        //    → SÓLO se muestra si el origen está dentro de
-        //      MAX_POOL_DISTANCE_M (500 m por defecto).
-        //  Esto evita que un conductor en Santa Cruz reciba alertas de
-        //  viajes en Montero (~40 km).
-        // ═══════════════════════════════════════════════════════════════
         async function showRideRequest(ride) {
             if (!isDriverOnline) return;
 
@@ -2376,6 +2502,7 @@
                 showToast('¡Viaje completado!', 'check-circle');
                 speakInstruction('Viaje completado');
                 setTimeout(() => { loadWalletData().catch(()=>{}); }, 900);
+                setTimeout(() => { loadDriverStats().catch(()=>{}); }, 1200);
             } else showToast('Viaje no completado', 'info');
             resetRideState();
         }
@@ -2630,6 +2757,14 @@
             isDriverOnline = e.target.checked;
             updateStatusCard(isDriverOnline);
             updateDebugStatus();
+
+            if (isDriverOnline) {
+                startOnlineSession();
+            } else {
+                stopOnlineSession();
+                loadDriverStats();
+            }
+
             if (isDriverOnline) {
                 try { await initCompass(); } catch (err) {}
                 try {
@@ -2657,6 +2792,7 @@
                     await supabaseClient.from('driver_status').upsert({ driver_id: currentDriverId, is_online: true, latitude: currentPosition?.[0] || null, longitude: currentPosition?.[1] || null, last_updated: new Date().toISOString() }, { onConflict: 'driver_id' });
                 } catch (e) {}
                 await loadActiveRide();
+                loadDriverStats();
                 setTimeout(async () => {
                     if (!currentRideId && !pendingRide && isDriverOnline) {
                         const { data } = await supabaseClient
@@ -2901,7 +3037,7 @@
             else activeRides.forEach(r => {
                 let sc = 'activo'; if (r.status === 'llegado_origen') sc = 'llegado_origen'; else if (r.status === 'pendiente') sc = 'pendiente';
                 const d = new Date(r.created_at), ts = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), ds = d.toLocaleDateString([], {day:'2-digit',month:'short'});
-                ac.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${r.origin_address||'Origen'}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${r.destination_address||'Destino'}</span></div></div><span class="status-badge ${sc}">${r.status.replace('_',' ')}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${ds}</span><span><i class="fas fa-clock"></i> ${ts}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
+                ac.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${escapeHtml(r.origin_address||'Origen')}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${escapeHtml(r.destination_address||'Destino')}</span></div></div><span class="status-badge ${sc}">${escapeHtml(r.status.replace('_',' '))}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${escapeHtml(ds)}</span><span><i class="fas fa-clock"></i> ${escapeHtml(ts)}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
             });
             const { data: completedRides } = await supabaseClient.from('rides').select('id, origin_address, destination_address, price, status, created_at').eq('driver_id', currentDriverId).in('status', ['completado','no_completado','cancelado','rechazado']).order('created_at', { ascending: false }).limit(30);
             const cc = document.getElementById('completedRidesList');
@@ -2910,7 +3046,7 @@
             else completedRides.forEach(r => {
                 const bc = r.status === 'completado' ? 'completado' : (r.status === 'no_completado' ? 'no_completado' : '');
                 const d = new Date(r.created_at), ts = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), ds = d.toLocaleDateString([], {day:'2-digit',month:'short'});
-                cc.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${r.origin_address||'Origen'}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${r.destination_address||'Destino'}</span></div></div><span class="status-badge ${bc}">${r.status.replace('_',' ')}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${ds}</span><span><i class="fas fa-clock"></i> ${ts}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
+                cc.innerHTML += `<div class="ride-card-history"><div class="history-card-top"><div class="history-route"><div class="route-point origin"><i class="fas fa-circle"></i><span>${escapeHtml(r.origin_address||'Origen')}</span></div><div class="route-connector"></div><div class="route-point dest"><i class="fas fa-circle"></i><span>${escapeHtml(r.destination_address||'Destino')}</span></div></div><span class="status-badge ${bc}">${escapeHtml(r.status.replace('_',' '))}</span></div><div class="history-card-bottom"><div class="history-meta"><span><i class="fas fa-calendar"></i> ${escapeHtml(ds)}</span><span><i class="fas fa-clock"></i> ${escapeHtml(ts)}</span></div><div class="history-price">Bs ${parseFloat(r.price||0).toFixed(2)}</div></div></div>`;
             });
         }
 
@@ -2936,7 +3072,7 @@
             if (c.querySelector('.empty-state')) c.innerHTML = '';
             const el = document.createElement('div');
             el.className = `message ${type}`;
-            el.innerHTML = `<div>${text}</div><span class="message-time">${date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`;
+            el.innerHTML = `<div>${escapeHtml(text)}</div><span class="message-time">${escapeHtml(date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}</span>`;
             c.appendChild(el); c.scrollTop = c.scrollHeight;
         }
         async function sendCentralMessage() {
@@ -2973,7 +3109,7 @@
                 div.className = 'transaction-item';
                 const pos = tx.amount >= 0, icon = pos ? 'fa-arrow-down' : 'fa-arrow-up';
                 const ds = new Date(tx.created_at).toLocaleDateString([], {day:'2-digit',month:'short'});
-                div.innerHTML = `<div class="transaction-info"><div class="transaction-icon ${pos?'positive':'negative'}"><i class="fas ${icon}"></i></div><div class="transaction-details"><div class="transaction-title">${tx.description||tx.type}</div><div class="transaction-date">${ds}</div></div></div><div class="transaction-amount ${pos?'positive':'negative'}">${pos?'+':''}Bs ${parseFloat(tx.amount).toFixed(2)}</div>`;
+                div.innerHTML = `<div class="transaction-info"><div class="transaction-icon ${pos?'positive':'negative'}"><i class="fas ${icon}"></i></div><div class="transaction-details"><div class="transaction-title">${escapeHtml(tx.description||tx.type)}</div><div class="transaction-date">${escapeHtml(ds)}</div></div></div><div class="transaction-amount ${pos?'positive':'negative'}">${pos?'+':''}Bs ${parseFloat(tx.amount).toFixed(2)}</div>`;
                 list.appendChild(div);
             });
         }
@@ -3012,6 +3148,7 @@
         }, 5000);
 
         window.addEventListener('beforeunload', () => {
+            stopOnlineSession();
             stopRideNotification();
             if (window.speechSynthesis) window.speechSynthesis.cancel();
             if (watchId !== null) navigator.geolocation.clearWatch(watchId);
@@ -3029,19 +3166,23 @@
         });
 
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
+            if (document.hidden) {
+                stopOnlineSession();
+            } else {
+                if (isDriverOnline) startOnlineSession();
                 hideLoading();
                 if (map) map.resize();
                 if (isDriverOnline && !watchId) startTracking();
                 if (!animationFrameId) animationFrameId = requestAnimationFrame(animateMarker);
                 updateGreeting();
+                loadDriverStats();
                 try { if (notificationAudioCtx && notificationAudioCtx.state === 'suspended') notificationAudioCtx.resume(); } catch (e) {}
             }
         });
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v6.8 — hybrid camera + smooth reroute + soft snap + pool filter', 'success');
+        dlog('App iniciada. v1.4 — XSS hardened + live stats + pool filter + notif fix', 'success');
     </script>
 </body>
 </html>

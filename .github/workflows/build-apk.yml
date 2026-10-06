@@ -60,8 +60,8 @@ jobs:
       - name: 🔢 Configurar versionCode y versionName
         run: |
           GRADLE_FILE="android/app/build.gradle"
-          sed -i 's/versionCode [0-9]*/versionCode 6/' "$GRADLE_FILE"
-          sed -i 's/versionName "[^"]*"/versionName "1.6"/' "$GRADLE_FILE"
+          sed -i 's/versionCode [0-9]*/versionCode 7/' "$GRADLE_FILE"
+          sed -i 's/versionName "[^"]*"/versionName "1.7"/' "$GRADLE_FILE"
           echo "=== Versión configurada ==="
           grep -E "versionCode|versionName" "$GRADLE_FILE"
 

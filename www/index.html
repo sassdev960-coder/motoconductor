@@ -1,4 +1,4 @@
-<!-- ROUTE STREET-FOLLOWING V16 - 25M FINISH + PAYMENT METHOD -->
+<!-- ROUTE STREET-FOLLOWING V19 - PREVIEW 2D PRE-ACEPTACIÓN + RUTA COMPLETA -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -95,13 +95,38 @@
         .map-status-pill{background:rgba(26,28,34,0.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:var(--border-radius-full);padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white);box-shadow:var(--shadow-md)}
         .map-status-pill .pulse-dot{width:8px;height:8px;border-radius:var(--border-radius-full);background:var(--green-online);box-shadow:0 0 8px var(--green-glow);animation:pulseDot 1.5s infinite}
         @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.5}}
-        .navigation-panel{position:absolute;top:105px;left:50%;transform:translateX(-50%);width:calc(100% - 36px);max-width:420px;z-index:99;background:linear-gradient(135deg,var(--blue),#2563eb);border-radius:var(--border-radius-lg);padding:18px;display:none;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(59,130,246,0.4);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(10px)}
-        .navigation-panel.active{display:flex}
-        .nav-instruction{display:flex;align-items:center;justify-content:center;width:68px;height:68px;background:rgba(255,255,255,0.15);border-radius:var(--border-radius-md);flex-shrink:0;border:1px solid rgba(255,255,255,0.2)}
-        .nav-instruction i{font-size:38px;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,0.3)}
-        .nav-details{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
-        .nav-distance{font-size:28px;color:var(--white);font-weight:800;line-height:1;letter-spacing:-0.5px}
-        .nav-text{font-size:14px;color:rgba(255,255,255,0.95);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+        /* ═══════════════════════════════════════════════════════════════
+           v18.3 — PANEL DE NAVEGACIÓN ULTRA COMPACTO (arriba-derecha)
+           ═══════════════════════════════════════════════════════════════ */
+        .navigation-panel{
+            position:absolute !important;
+            top:calc(68px + env(safe-area-inset-top,0px)) !important;
+            right:12px !important;
+            left:auto !important;
+            bottom:auto !important;
+            transform:none !important;
+            width:auto !important;
+            min-width:0 !important;
+            max-width:175px !important;
+            padding:8px 10px !important;
+            display:none;
+            align-items:center;
+            gap:8px;
+            background:linear-gradient(135deg,var(--blue),#2563eb);
+            border-radius:14px;
+            box-shadow:0 6px 18px rgba(59,130,246,0.5);
+            border:1px solid rgba(255,255,255,0.22);
+            backdrop-filter:blur(10px);
+            z-index:2100 !important;
+        }
+        .navigation-panel.active{display:inline-flex !important}
+        .nav-instruction{width:36px !important;height:36px !important;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.18);border-radius:10px;flex-shrink:0;border:1px solid rgba(255,255,255,0.25);margin:0 !important}
+        .nav-instruction i{font-size:17px !important;color:var(--white);text-shadow:0 2px 6px rgba(0,0,0,0.35)}
+        .nav-details{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left;overflow:hidden}
+        .nav-distance{font-size:15px !important;color:var(--white);font-weight:800;line-height:1.05;letter-spacing:-0.2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+        .nav-text{font-size:9px !important;color:rgba(255,255,255,0.9);font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;display:block;-webkit-line-clamp:unset}
+
         .ride-actions-float{position:absolute;bottom:25px;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:center;gap:14px;padding:0 18px;pointer-events:none}
         .action-btn{pointer-events:auto;width:58px;height:58px;padding:0;border-radius:50%;border:none;font-weight:700;font-size:14px;box-shadow:var(--shadow-lg);cursor:pointer;transition:all 0.2s var(--ease-bounce);display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;border:1px solid rgba(255,255,255,0.18);flex:0 0 58px}
         .action-btn i{font-size:21px;margin:0}
@@ -130,19 +155,58 @@
         .driver-arrow .driver-bike{position:absolute;left:50%;top:31px;transform:translateX(-50%);width:37px;height:53px;z-index:3;filter:drop-shadow(0 5px 4px rgba(0,0,0,.5))}
         .driver-arrow .driver-bike svg{width:100%;height:100%;display:block;overflow:visible}
         @keyframes pulseMarker{0%{transform:scale(.82);opacity:.85}70%{transform:scale(1.2);opacity:0}100%{transform:scale(1.2);opacity:0}}
-        .maneuver-arrow{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:4px solid white;border-radius:var(--border-radius-full);box-shadow:0 8px 24px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;color:white;font-size:26px;position:relative;animation:maneuverPulse 1.5s infinite}
-        .maneuver-arrow::before{content:'';position:absolute;inset:-12px;border-radius:var(--border-radius-full);background:rgba(59,130,246,0.3);animation:pulseMarker 1.5s infinite}
-        @keyframes maneuverPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+
+        /* v18.3 — .maneuver-arrow eliminado (ya no se usa) */
+
         .bottom-nav{background:rgba(20,22,28,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px)) 8px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 30px rgba(0,0,0,0.5);position:relative;z-index:1000;gap:4px}
         .bottom-nav.nav-hidden{display:none !important;}
         #view-viajes.navigation-active{position:fixed !important;inset:0 !important;width:100vw !important;height:100vh !important;height:100dvh !important;z-index:2000 !important;display:block !important;overflow:hidden !important;padding:0 !important;margin:0 !important;}
         #view-viajes.navigation-active #map{position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;}
         #view-viajes.navigation-active .map-topbar{z-index:2100;padding-top:calc(12px + env(safe-area-inset-top,0px));}
-        #view-viajes.navigation-active .navigation-panel{top:calc(68px + env(safe-area-inset-top,0px));left:12px;right:12px;width:auto;max-width:none;transform:none;z-index:2100;}
         #view-viajes.navigation-active .ride-actions-float{z-index:2100;bottom:calc(18px + env(safe-area-inset-bottom,0px));}
         #view-viajes.navigation-active .recenter-btn{bottom:calc(110px + env(safe-area-inset-bottom,0px));z-index:2150;}
         #view-viajes.navigation-active .mapboxgl-ctrl-bottom-left,#view-viajes.navigation-active .mapboxgl-ctrl-bottom-right{display:none !important;}
-        .driver-arrow{will-change:transform;transform-origin:center center;}
+
+        /* ═══════════════════════════════════════════════════════════════
+           v19 — ESTILO PREVIEW (mientras se ve la solicitud sin aceptar)
+           El mapa en 2D con la ruta completa dibujada
+           ═══════════════════════════════════════════════════════════════ */
+        #view-viajes.preview-active .map-topbar{padding-top:calc(12px + env(safe-area-inset-top,0px));}
+        #view-viajes.preview-active .navigation-panel{display:none !important;}
+        #view-viajes.preview-active .ride-actions-float{display:none !important;}
+        #view-viajes.preview-active .recenter-btn{display:none !important;}
+
+        /* Panel info cuando hay solicitud pendiente */
+        .ride-preview-info{
+            position:absolute;
+            bottom:24px;
+            left:16px;
+            right:16px;
+            z-index:1500;
+            background:rgba(15,15,16,0.96);
+            border:1px solid rgba(255,122,0,0.5);
+            border-radius:16px;
+            padding:14px 16px;
+            box-shadow:0 12px 32px rgba(0,0,0,0.7);
+            backdrop-filter:blur(12px);
+            display:none;
+            align-items:center;
+            gap:12px;
+        }
+        .ride-preview-info.active{display:flex}
+        .ride-preview-info-icon{
+            width:44px;height:44px;border-radius:12px;
+            background:linear-gradient(135deg,rgba(255,122,0,0.2),rgba(255,122,0,0.1));
+            border:1px solid rgba(255,122,0,0.4);
+            display:flex;align-items:center;justify-content:center;
+            flex-shrink:0;
+        }
+        .ride-preview-info-icon i{color:var(--primary-orange);font-size:18px}
+        .ride-preview-info-content{flex:1;min-width:0}
+        .ride-preview-info-title{font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px}
+        .ride-preview-info-text{font-size:13px;color:var(--white);font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+        .ride-preview-info-badge{font-size:11px;font-weight:700;color:var(--primary-orange);background:rgba(255,122,0,0.15);border:1px solid rgba(255,122,0,0.3);padding:4px 10px;border-radius:10px;flex-shrink:0}
+
         .nav-item{color:var(--gray-text);display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:600;gap:4px;transition:all 0.3s var(--ease-smooth);cursor:pointer;flex:1;padding:8px 4px;border-radius:var(--border-radius-md);position:relative;letter-spacing:0.3px}
         .nav-icon{font-size:22px;transition:all 0.3s var(--ease-bounce);position:relative}
         .nav-item.active{color:var(--primary-orange)}
@@ -578,6 +642,15 @@
                 <button class="action-btn not-completed hidden" id="notCompletedBtn" title="Cancelar viaje" aria-label="Cancelar viaje" onclick="finishRide(false)"><i class="fas fa-times"></i></button>
                 <button class="action-btn redirect hidden" id="redirectBtn" title="Redireccionar" aria-label="Redireccionar" onclick="redirectRoute()"><i class="fas fa-route"></i></button>
             </div>
+            <!-- 🆕 v19 — Panel de info mientras hay solicitud pendiente -->
+            <div class="ride-preview-info" id="ridePreviewInfo">
+                <div class="ride-preview-info-icon"><i class="fas fa-eye"></i></div>
+                <div class="ride-preview-info-content">
+                    <div class="ride-preview-info-title">Vista previa</div>
+                    <div class="ride-preview-info-text" id="ridePreviewText">Recorrido completo del viaje</div>
+                </div>
+                <div class="ride-preview-info-badge" id="ridePreviewBadge">2D</div>
+            </div>
         </div>
 
         <div id="view-historial" class="content-area view">
@@ -739,17 +812,25 @@
 
         const NAV_ARROW_Y_FRACTION = 0.72;
         const COMPASS_SMOOTHING = 0.10;
-        const SNAP_MAX_DISTANCE = 60;
-        const OFF_ROUTE_THRESHOLD_M = 45;
-        const OFF_ROUTE_DURATION_MS = 8000;
-        const REROUTE_COOLDOWN_MS = 20000;
+        const SNAP_MAX_DISTANCE = 40;
+        const OFF_ROUTE_THRESHOLD_M = 35;
+        const OFF_ROUTE_FAST_THRESHOLD_M = 60;
+        const OFF_ROUTE_DURATION_MS = 3000;
+        const REROUTE_COOLDOWN_MS = 8000;
         const MAX_POOL_DISTANCE_M = 500;
 
-        // ═══════════════════════════════════════════════════════════
-        //  v1.7: DISTANCIA PARA FINALIZAR VIAJE
-        // ═══════════════════════════════════════════════════════════
-        const FINISH_RIDE_DISTANCE_M = 25;      // ⬅️ antes era 200
-        const ARRIVE_AT_ORIGIN_DISTANCE_M = 25; // ⬅️ antes era 50
+        // Servidores OSRM de respaldo (perfil 'driving' = calles urbanas, ideal para motos)
+        const OSRM_ENDPOINTS = [
+            'https://router.project-osrm.org/route/v1/driving/',
+            'https://routing.openstreetmap.de/routed-car/route/v1/driving/'
+        ];
+
+        const FINISH_RIDE_DISTANCE_M = 25;
+        const ARRIVE_AT_ORIGIN_DISTANCE_M = 25;
+
+        // v18: umbral de avance reducido y throttle más agresivo
+        const MANEUVER_ADVANCE_DISTANCE_M = 12;
+        const MANEUVER_ADVANCE_THROTTLE_MS = 800;
 
         const NAV_ZOOM_MIN = 16.8;
         const NAV_ZOOM_MAX = 18.2;
@@ -930,6 +1011,21 @@
                 viajesView?.classList.remove('navigation-active');
                 navigationPanel?.classList.remove('active');
                 navigationCameraLocked = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  v19 — MODO PREVIEW (2D) PARA MOSTRAR RUTA ANTES DE ACEPTAR
+        // ═══════════════════════════════════════════════════════════════
+        function setPreviewMode(enabled) {
+            const viajesView = document.getElementById('view-viajes');
+            const previewInfo = document.getElementById('ridePreviewInfo');
+            if (enabled) {
+                viajesView?.classList.add('preview-active');
+                if (previewInfo) previewInfo.classList.add('active');
+            } else {
+                viajesView?.classList.remove('preview-active');
+                if (previewInfo) previewInfo.classList.remove('active');
             }
         }
 
@@ -1133,6 +1229,9 @@
         let isRejecting = false;
         let isAcceptingRide = false;
 
+        // v19: ruta preview completa (moto→origen→destino)
+        let previewRouteActive = false;
+
         let apLat = null, apLng = null, apSelfieFile = null;
 
         let onlineSessionStart = null;
@@ -1273,11 +1372,27 @@
             const now = Date.now();
             if (now - lastRerouteTime < REROUTE_COOLDOWN_MS) return;
             const dist = getDistanceToRoute(driverLat, driverLng);
+
+            if (dist > OFF_ROUTE_FAST_THRESHOLD_M) {
+                dlog(`🚨 Desvío severo (${Math.round(dist)}m). Reroute inmediato.`, 'error');
+                offRouteStartTime = null;
+                await performAutoReroute(driverLat, driverLng);
+                return;
+            }
+
             if (dist > OFF_ROUTE_THRESHOLD_M) {
-                if (offRouteStartTime === null) { offRouteStartTime = now; dlog(`📍 Fuera de ruta (${Math.round(dist)}m). Monitoreando...`, 'warning'); }
-                else if (now - offRouteStartTime > OFF_ROUTE_DURATION_MS) { dlog(`🔄 Auto-reroute disparado`, 'warning'); await performAutoReroute(driverLat, driverLng); }
+                if (offRouteStartTime === null) {
+                    offRouteStartTime = now;
+                    dlog(`📍 Fuera de ruta (${Math.round(dist)}m). Monitoreando...`, 'warning');
+                } else if (now - offRouteStartTime > OFF_ROUTE_DURATION_MS) {
+                    dlog(`🔄 Auto-reroute disparado (${Math.round((now - offRouteStartTime) / 1000)}s fuera)`, 'warning');
+                    await performAutoReroute(driverLat, driverLng);
+                }
             } else {
-                if (offRouteStartTime !== null) { dlog(`✅ De vuelta en ruta`, 'success'); offRouteStartTime = null; }
+                if (offRouteStartTime !== null) {
+                    dlog(`✅ De vuelta en ruta`, 'success');
+                    offRouteStartTime = null;
+                }
             }
         }
 
@@ -1380,7 +1495,14 @@
             if (!wasPending && !wasActive) return false;
             stopRideNotification();
             if (window.speechSynthesis) window.speechSynthesis.cancel();
-            if (wasPending) { hideRideModal(); pendingRide = null; showToast('El pasajero canceló el viaje', 'times-circle'); }
+            if (wasPending) {
+                hideRideModal();
+                pendingRide = null;
+                setPreviewMode(false);
+                previewRouteActive = false;
+                clearRoute();
+                showToast('El pasajero canceló el viaje', 'times-circle');
+            }
             if (wasActive) {
                 hideRideModal(); clearRoute();
                 currentRideId = null; currentRideStatus = null; currentRouteTarget = null;
@@ -1818,6 +1940,8 @@
             if (browsingTimer) { clearTimeout(browsingTimer); browsingTimer = null; }
             hideRecenterButton();
             setNavigationMode(false);
+            setPreviewMode(false);
+            previewRouteActive = false;
         }
 
         function togglePassword() {
@@ -2037,6 +2161,11 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  v19 — showRideRequest CON VISTA PREVIA EN 2D
+        //  Muestra la ruta completa (moto→origen→destino) en 2D,
+        //  modal encima, sin entrar en modo navegación.
+        // ═══════════════════════════════════════════════════════════════
         async function showRideRequest(ride) {
             if (!isDriverOnline) return;
             const isDirectAssignment = ride.driver_id === currentDriverId;
@@ -2078,10 +2207,150 @@
                 acceptBtn.innerHTML = '<i class="fas fa-check"></i> Aceptar';
                 rejectBtn.innerHTML = '<i class="fas fa-times"></i> Rechazar';
             }
+
+            // 🆕 v19: ANTES de mostrar el modal, preparar el mapa en 2D con la ruta completa
+            // Si no estamos en la vista de viajes, cambiar
+            const viajesActive = document.getElementById('view-viajes')?.classList.contains('active');
+            if (!viajesActive) {
+                switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
+            }
+            // Esperar a que el contenedor esté visible
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                const c = document.getElementById('map');
+                if (c && c.offsetWidth > 0 && c.offsetHeight > 0) break;
+            }
+            if (!map) await initMap([currentPosition?.[1] || -63.1821, currentPosition?.[0] || -17.7833]);
+            await ensureMapReady();
+
+            // Activar modo preview (2D, sin panel de navegación, sin botones de acción)
+            setPreviewMode(true);
+            previewRouteActive = true;
+
+            // Dibujar la ruta completa en 2D
+            if (currentPosition && ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
+                await drawPreviewRoute(
+                    currentPosition,
+                    [ride.origin_lat, ride.origin_lng],
+                    [ride.destination_lat, ride.destination_lng]
+                );
+            }
+
+            // Ahora sí mostrar el modal encima
             document.getElementById('rideModal').classList.add('active');
             startRideNotification();
             updateDebugStatus();
             registrarVistaDeCarrera(ride);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  v19 — DIBUJAR RUTA PREVIEW COMPLETA EN 2D
+        //  Waypoints: moto actual → origen → destino
+        //  Vista 2D (pitch 0, bearing 0), ajusta zoom para ver todo
+        // ═══════════════════════════════════════════════════════════════
+        async function drawPreviewRoute(fromPosition, pickupCoords, destinationCoords) {
+            if (!map || !mapInitialized) { await initMap(); }
+            const mapOk = await ensureMapReady();
+            if (!mapOk || !map) return false;
+
+            // Limpiar cualquier ruta previa
+            clearRoute();
+
+            // Construir waypoints: moto → origen → destino
+            const waypoints = `${fromPosition[1]},${fromPosition[0]};${pickupCoords[1]},${pickupCoords[0]};${destinationCoords[1]},${destinationCoords[0]}`;
+            const commonParams = 'overview=full&geometries=geojson&steps=false&continue_straight=false&alternatives=false';
+
+            let data = null;
+            for (const endpoint of OSRM_ENDPOINTS) {
+                const url = `${endpoint}${waypoints}?${commonParams}`;
+                try {
+                    dlog(`🛣️ Preview: consultando ${new URL(endpoint).hostname}...`, 'info');
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) continue;
+                    const json = await response.json();
+                    if (json.routes && json.routes.length > 0) { data = json; break; }
+                } catch (err) {
+                    dlog(`⚠️ Preview ${new URL(endpoint).hostname} falló: ${err.message}`, 'warning');
+                }
+            }
+
+            if (!data || !data.routes || data.routes.length === 0) {
+                dlog('❌ Preview: sin ruta disponible', 'error');
+                return false;
+            }
+
+            const route = data.routes[0];
+            const rawCoords = route.geometry?.coordinates;
+            if (!Array.isArray(rawCoords) || rawCoords.length < 2) return false;
+
+            // Dibujar la ruta completa (fondo + línea)
+            const fullGeojson = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: rawCoords } };
+            map.addSource('route', { type: 'geojson', data: fullGeojson });
+            map.addLayer({
+                id: 'route-line-bg',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': currentMapTheme === 'night' ? '#021a35' : '#06356b',
+                    'line-width': 12,
+                    'line-opacity': currentMapTheme === 'night' ? 0.95 : 0.32
+                }
+            });
+            map.addSource('route-remaining', { type: 'geojson', data: fullGeojson });
+            map.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route-remaining',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: {
+                    'line-color': currentMapTheme === 'night' ? '#39a9ff' : '#1687ff',
+                    'line-width': 7,
+                    'line-opacity': 1,
+                    'line-blur': currentMapTheme === 'night' ? 0.15 : 0
+                }
+            });
+            routeLayers.push('route', 'route-remaining', 'route-line', 'route-line-bg');
+
+            // Marcador del origen (verde, letra A)
+            if (pickupMarker) { pickupMarker.remove(); pickupMarker = null; }
+            const pe = document.createElement('div');
+            pe.innerHTML = '<i class="fas fa-user-circle" style="font-size:35px;color:#22c55e;text-shadow:0 0 8px #22c55e;"></i>';
+            pickupMarker = new mapboxgl.Marker(pe).setLngLat([pickupCoords[1], pickupCoords[0]]).addTo(map);
+
+            // Marcador del destino (rojo, bandera)
+            if (dropoffMarker) { dropoffMarker.remove(); dropoffMarker = null; }
+            const de = document.createElement('div');
+            de.innerHTML = '<i class="fas fa-flag-checkered" style="font-size:35px;color:#ef4444;text-shadow:0 0 8px #ef4444;"></i>';
+            dropoffMarker = new mapboxgl.Marker(de).setLngLat([destinationCoords[1], destinationCoords[0]]).addTo(map);
+
+            // Guardar la ruta para referencia (aunque no se navega todavía)
+            window.currentRouteCoords = rawCoords.map(c => [c[1], c[0]]);
+            window.currentRouteDistance = route.distance || 0;
+
+            // Ajustar cámara en 2D para ver TODA la ruta
+            const bounds = new mapboxgl.LngLatBounds();
+            rawCoords.forEach(c => bounds.extend(c));
+            map.fitBounds(bounds, {
+                padding: { top: 100, bottom: 220, left: 60, right: 60 },
+                pitch: 0,
+                bearing: 0,
+                duration: 800,
+                maxZoom: 15
+            });
+
+            // Actualizar texto del panel preview
+            const previewText = document.getElementById('ridePreviewText');
+            if (previewText) {
+                const dist = ((route.distance || 0) / 1000).toFixed(1);
+                previewText.textContent = `Recorrido total: ${dist} km · Moto → Recoger → Destino`;
+            }
+
+            dlog(`✅ Preview 2D dibujado: ${Math.round(route.distance)}m total (moto→origen→destino)`, 'success');
+            return true;
         }
 
         async function registrarVistaDeCarrera(ride) {
@@ -2111,6 +2380,8 @@
             if (browsingTimer) { clearTimeout(browsingTimer); browsingTimer = null; }
             hideRecenterButton();
             setNavigationMode(false);
+            setPreviewMode(false);
+            previewRouteActive = false;
             document.getElementById('rideModal').classList.remove('active');
             document.getElementById('navigation-panel').classList.remove('active');
             currentRideId = null; currentRideStatus = null; pendingRide = null;
@@ -2148,9 +2419,6 @@
             if (document.getElementById('view-historial')?.classList.contains('active')) loadHistorial();
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  v1.7 — updateActionButtons con 25m para finalizar
-        // ═══════════════════════════════════════════════════════════
         function updateActionButtons() {
             const ids = ['pickupBtn', 'arrivedBtn', 'finishBtn', 'notCompletedBtn', 'redirectBtn'];
             ids.forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -2166,7 +2434,6 @@
                         currentPosition[0], currentPosition[1],
                         currentRideDestination.lat, currentRideDestination.lng
                     );
-                    // v1.7: mostrar botón solo cuando está a 25m o menos
                     nearDestination = Number.isFinite(dist) && dist <= FINISH_RIDE_DISTANCE_M;
                 }
                 if (nearDestination) document.getElementById('finishBtn').classList.remove('hidden');
@@ -2175,6 +2442,10 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  v19 — acceptRide CON CAMBIO DE 2D A 3D
+        //  Al aceptar: preview se apaga, cambia a 3D, navegación activa
+        // ═══════════════════════════════════════════════════════════════
         async function acceptRide() {
             if (!pendingRide || !pendingRide.id) return;
             if (isAcceptingRide) return;
@@ -2185,20 +2456,62 @@
                 const { data: rideCheck, error: checkErr } = await supabaseClient.from('rides').select('*').eq('id', rideId).single();
                 if (checkErr) { return alert('Error: ' + checkErr.message); }
                 let ride = rideCheck;
-                if (ride.status === 'cancelado' || ride.status === 'no_completado') { showToast('El pasajero canceló', 'times-circle'); hideRideModal(); pendingRide = null; return; }
+                if (ride.status === 'cancelado' || ride.status === 'no_completado') {
+                    showToast('El pasajero canceló', 'times-circle');
+                    hideRideModal();
+                    pendingRide = null;
+                    setPreviewMode(false);
+                    previewRouteActive = false;
+                    clearRoute();
+                    return;
+                }
                 if (ride.status === 'pendiente') {
                     const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('accept_ride', { p_ride_id: rideId, p_driver_id: currentDriverId });
                     if (rpcError) {
                         const { data: fallback, error: fbErr } = await supabaseClient.from('rides').update({ status: 'aceptado', driver_id: currentDriverId, accepted_at: new Date().toISOString() }).eq('id', rideId).eq('status', 'pendiente').select().maybeSingle();
-                        if (fbErr || !fallback) { showToast('Otro conductor la tomó', 'exclamation-circle'); hideRideModal(); pendingRide = null; return; }
+                        if (fbErr || !fallback) {
+                            showToast('Otro conductor la tomó', 'exclamation-circle');
+                            hideRideModal();
+                            pendingRide = null;
+                            setPreviewMode(false);
+                            previewRouteActive = false;
+                            clearRoute();
+                            return;
+                        }
                         ride = fallback;
                     } else {
-                        if (!rpcResult || !rpcResult.success) { showToast('Otro conductor la tomó', 'exclamation-circle'); hideRideModal(); pendingRide = null; return; }
+                        if (!rpcResult || !rpcResult.success) {
+                            showToast('Otro conductor la tomó', 'exclamation-circle');
+                            hideRideModal();
+                            pendingRide = null;
+                            setPreviewMode(false);
+                            previewRouteActive = false;
+                            clearRoute();
+                            return;
+                        }
                         ride = rpcResult.ride;
                     }
                 } else if (ride.status === 'aceptado' && ride.driver_id === currentDriverId) {
-                } else { alert('No disponible.'); hideRideModal(); pendingRide = null; return; }
-                currentRideId = rideId; currentRideStatus = 'aceptado'; pendingRide = null; hideRideModal();
+                    // ya asignado a mí
+                } else {
+                    alert('No disponible.');
+                    hideRideModal();
+                    pendingRide = null;
+                    setPreviewMode(false);
+                    previewRouteActive = false;
+                    clearRoute();
+                    return;
+                }
+                currentRideId = rideId;
+                currentRideStatus = 'aceptado';
+                pendingRide = null;
+                hideRideModal();
+
+                // 🆕 v19: apagar modo preview y limpiar la ruta completa que mostramos
+                setPreviewMode(false);
+                previewRouteActive = false;
+                clearRoute();
+
                 showLoading('Preparando navegación...');
                 if (!currentPosition) {
                     try {
@@ -2207,8 +2520,10 @@
                         if (map && mapInitialized) updateDriverMarker(currentPosition[0], currentPosition[1], 0);
                     } catch (e) { alert('Activa el GPS.'); return; }
                 }
-                switchTab('viajes', document.querySelector('.nav-item:nth-child(2)'));
+
+                // Cambiar a modo navegación (3D)
                 setNavigationMode(true);
+
                 for (let i = 0; i < 20; i++) {
                     await new Promise(r => setTimeout(r, 100));
                     const c = document.getElementById('map');
@@ -2218,19 +2533,32 @@
                 await ensureMapReady();
                 try { map.resize(); } catch (e) {}
                 await new Promise(r => setTimeout(r, 150));
+
+                // Aplicar cámara 3D
                 if (map && mapInitialized && currentPosition) {
                     const bearing = getNavigationCameraBearing(true);
                     const screenH = map.getContainer().offsetHeight || window.innerHeight;
-                    map.jumpTo({ center: [currentPosition[1], currentPosition[0]], zoom: 17.5, pitch: NAV_PITCH, bearing, offset: [0, Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5))] });
+                    map.jumpTo({
+                        center: [currentPosition[1], currentPosition[0]],
+                        zoom: 17.5,
+                        pitch: NAV_PITCH,
+                        bearing,
+                        offset: [0, Math.round(screenH * (NAV_ARROW_Y_FRACTION - 0.5))]
+                    });
                 }
+
+                // Dibujar la ruta del tramo pickup (conductor → origen)
                 if (ride.origin_lat && ride.origin_lng && ride.destination_lat && ride.destination_lng) {
-                    document.getElementById('loadingText').textContent = 'Calculando ruta...';
+                    document.getElementById('loadingText').textContent = 'Calculando ruta al pasajero...';
                     const drawn = await drawRoute(currentPosition, [ride.origin_lat, ride.origin_lng], [ride.destination_lat, ride.destination_lng]);
                     if (drawn) currentRouteTarget = { lat: ride.origin_lat, lng: ride.origin_lng };
                 }
                 updateActionButtons();
                 setNavigationMode(true);
-            } finally { isAcceptingRide = false; hideLoading(); }
+            } finally {
+                isAcceptingRide = false;
+                hideLoading();
+            }
         }
 
         async function rejectRide() {
@@ -2240,12 +2568,23 @@
             const rideId = pendingRide.id;
             pendingRide = null;
             hideRideModal();
+            // 🆕 v19: limpiar preview
+            setPreviewMode(false);
+            previewRouteActive = false;
+            clearRoute();
             try {
                 await supabaseClient.from('ride_rejections').insert({ ride_id: rideId, driver_id: currentDriverId });
                 const { error } = await supabaseClient.from('rides').update({ status: 'pendiente', driver_id: null }).eq('id', rideId);
                 if (error) showToast('No se pudo rechazar', 'exclamation-circle');
                 else showToast('Viaje rechazado', 'check-circle');
-            } catch (e) { showToast('Error al rechazar', 'exclamation-circle'); } finally { isRejecting = false; }
+            } catch (e) { showToast('Error al rechazar', 'exclamation-circle'); }
+            finally {
+                isRejecting = false;
+                // Volver a la cámara normal
+                if (map && currentPosition) {
+                    map.easeTo({ center: [currentPosition[1], currentPosition[0]], zoom: 16, pitch: 0, bearing: 0, duration: 600 });
+                }
+            }
         }
 
         async function markArrived() {
@@ -2253,7 +2592,6 @@
             const { data: ride } = await supabaseClient.from('rides').select('origin_lat, origin_lng').eq('id', currentRideId).single();
             if (ride && currentPosition) {
                 const dist = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.origin_lat, ride.origin_lng);
-                // v1.7: umbral para marcar llegada al origen = 25m
                 if (dist > ARRIVE_AT_ORIGIN_DISTANCE_M) { showToast(`Estás a ${Math.round(dist)} m del origen`, 'exclamation-triangle'); return; }
             }
             const { error } = await supabaseClient.from('rides').update({ status: 'llegado_origen' }).eq('id', currentRideId);
@@ -2364,9 +2702,6 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  v1.7 — finishRide con validación 25m
-        // ═══════════════════════════════════════════════════════════
         async function finishRide(completed) {
             if (!currentRideId) return;
             if (completed) {
@@ -2374,7 +2709,6 @@
                 const { data: ride } = await supabaseClient.from('rides').select('destination_lat, destination_lng, price').eq('id', currentRideId).single();
                 if (ride && ride.destination_lat && ride.destination_lng) {
                     const dist = getDistanceFromLatLonInMeters(currentPosition[0], currentPosition[1], ride.destination_lat, ride.destination_lng);
-                    // v1.7: solo bloquea si está a más de 25m del destino
                     if (dist > FINISH_RIDE_DISTANCE_M) { showToast(`Estás a ${Math.round(dist)} m del destino · Acércate a 25 m para finalizar`, 'exclamation-triangle'); return; }
                 }
                 window.pendingPaymentMethod = null;
@@ -2411,7 +2745,8 @@
             if (!map || !mapInitialized) { await initMap(); }
             const mapOk = await ensureMapReady();
             if (!mapOk || !map) { dlog('❌ drawRoute: mapa no disponible', 'error'); return false; }
-            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            // v18.3: no dibujamos flecha de maniobra (función vacía)
+            if (maneuverArrowMarker) { try { maneuverArrowMarker.remove(); } catch(e) {} maneuverArrowMarker = null; }
             currentNavigationSteps = []; currentNavigationIndex = 0;
             if (window.speechSynthesis) window.speechSynthesis.cancel();
             if (originCoords[0] !== waypointCoords[0] || originCoords[1] !== waypointCoords[1]) {
@@ -2426,17 +2761,33 @@
                 coordinates = [[originCoords[1], originCoords[0]], [waypointCoords[1], waypointCoords[0]], [destinationCoords[1], destinationCoords[0]]];
             }
             const coordsString = coordinates.map(c => c.join(',')).join(';');
-            let url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&steps=true&annotations=true`;
-            if (Number.isFinite(smoothedBearing)) {
-                const heading = Math.round(((smoothedBearing % 360) + 360) % 360);
-                const bearings = coordinates.map((_, i) => i === 0 ? `${heading},90` : '180,90').join(';');
-                url += `&bearings=${bearings}`;
+            const commonParams = 'overview=full&geometries=geojson&steps=true&annotations=true&continue_straight=false&alternatives=false';
+
+            let data = null;
+            let lastError = null;
+            for (const endpoint of OSRM_ENDPOINTS) {
+                const url = `${endpoint}${coordsString}?${commonParams}`;
+                try {
+                    dlog(`🛣️ Intentando ruta con ${new URL(endpoint).hostname}...`, 'info');
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) { lastError = `HTTP ${response.status}`; continue; }
+                    const json = await response.json();
+                    if (json.routes && json.routes.length > 0) {
+                        data = json;
+                        dlog(`✅ Ruta recibida de ${new URL(endpoint).hostname}`, 'success');
+                        break;
+                    }
+                } catch (err) {
+                    lastError = err.message;
+                    dlog(`⚠️ ${new URL(endpoint).hostname} falló: ${err.message}`, 'warning');
+                }
             }
+
             try {
-                dlog('🛣️ Calculando ruta con OSRM...', 'info');
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data.routes && data.routes.length > 0) {
+                if (data && data.routes && data.routes.length > 0) {
                     const route = data.routes[0];
                     const rawCoords = route.geometry && route.geometry.coordinates;
                     if (!Array.isArray(rawCoords) || rawCoords.length < 2) { dlog('❌ Geometría inválida', 'error'); return false; }
@@ -2475,12 +2826,14 @@
                     }
                     window.currentRouteCoords = cleanedCoords;
                     window.currentRouteDistance = route.distance || 1000;
-                    drawManeuverArrow(currentNavigationSteps);
                     currentRouteTarget = { lat: routeTargetCoords[0], lng: routeTargetCoords[1] };
                     speakInstruction(pickupStage ? 'Dirígete al pasajero' : 'Siga la ruta');
-                    dlog(pickupStage ? '✅ Ruta conductor → pasajero dibujada: ' + Math.round(route.distance) + 'm' : '✅ Ruta hacia destino dibujada: ' + Math.round(route.distance) + 'm', 'success');
+                    const routeSource = pickupStage ? 'conductor→pasajero' : 'conductor→destino';
+                    dlog(`✅ Ruta ${routeSource}: ${Math.round(route.distance)}m, ${currentNavigationSteps.length} pasos`, 'success');
                     return true;
-                } else { throw new Error('OSRM no devolvió rutas'); }
+                } else {
+                    throw new Error(lastError || 'OSRM no devolvió rutas');
+                }
             } catch (e) {
                 dlog('❌ Error OSRM: ' + e.message, 'error');
                 showToast('No se pudo calcular la ruta. Reintentando...', 'exclamation-triangle');
@@ -2501,28 +2854,18 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        //  v18.3 — LA FLECHA CIRCULAR FUE ELIMINADA
+        //  Ya no se dibuja ningún marcador de maniobra sobre el mapa.
+        //  La instrucción visual queda solo en el panel azul arriba.
+        // ═══════════════════════════════════════════════════════════════
         function drawManeuverArrow(steps) {
-            if (!map || !steps || steps.length === 0) return;
-            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
-            const nextStep = steps[0];
-            if (!nextStep || !nextStep.maneuver) return;
-            let lng, lat;
-            if (Array.isArray(nextStep.maneuver.location)) { [lng, lat] = nextStep.maneuver.location; }
-            else if (nextStep.maneuver.location) { lng = nextStep.maneuver.location.lng || nextStep.maneuver.location[0]; lat = nextStep.maneuver.location.lat || nextStep.maneuver.location[1]; }
-            else return;
-            if (!lng || !lat || isNaN(lng) || isNaN(lat)) return;
-            const modifier = (nextStep.maneuver.modifier || '').toLowerCase();
-            const type = (nextStep.maneuver.type || '').toLowerCase();
-            let iconClass = 'fa-arrow-up';
-            if (modifier.includes('right')) iconClass = 'fa-arrow-right';
-            else if (modifier.includes('left')) iconClass = 'fa-arrow-left';
-            else if (modifier.includes('uturn')) iconClass = 'fa-undo';
-            else if (type === 'arrive') iconClass = 'fa-flag-checkered';
-            else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
-            const arrowEl = document.createElement('div');
-            arrowEl.className = 'maneuver-arrow';
-            arrowEl.innerHTML = `<i class="fas ${iconClass}"></i>`;
-            maneuverArrowMarker = new mapboxgl.Marker({ element: arrowEl, anchor: 'center' }).setLngLat([lng, lat]).addTo(map);
+            // Eliminar cualquier flecha previa que hubiera quedado
+            if (maneuverArrowMarker) {
+                try { maneuverArrowMarker.remove(); } catch (e) {}
+                maneuverArrowMarker = null;
+            }
+            // No dibujamos nada nuevo
         }
 
         function checkAndAdvanceManeuver(driverLat, driverLng) {
@@ -2534,9 +2877,10 @@
             else { stepLng = currentStep.maneuver.location.lng; stepLat = currentStep.maneuver.location.lat; }
             if (isNaN(stepLng) || isNaN(stepLat)) return;
             const distanceToManeuver = getDistanceFromLatLonInMeters(driverLat, driverLng, stepLat, stepLng);
-            if (distanceToManeuver < 25 && currentNavigationIndex < currentNavigationSteps.length - 1) {
+
+            if (distanceToManeuver < MANEUVER_ADVANCE_DISTANCE_M && currentNavigationIndex < currentNavigationSteps.length - 1) {
                 const now = Date.now();
-                if (now - lastManeuverAdvanceTime < 2000) return;
+                if (now - lastManeuverAdvanceTime < MANEUVER_ADVANCE_THROTTLE_MS) return;
                 lastManeuverAdvanceTime = now;
                 currentNavigationIndex++;
                 const nextStep = currentNavigationSteps[currentNavigationIndex];
@@ -2544,6 +2888,29 @@
                 const remainingSteps = currentNavigationSteps.slice(currentNavigationIndex);
                 drawManeuverArrow(remainingSteps);
                 if (nextStep && nextStep.maneuver && nextStep.maneuver.instruction) speakInstruction(nextStep.maneuver.instruction);
+            }
+        }
+
+        function updateLiveNavigationDistance(driverLat, driverLng) {
+            if (!currentNavigationSteps || currentNavigationIndex >= currentNavigationSteps.length) return;
+            const currentStep = currentNavigationSteps[currentNavigationIndex];
+            if (!currentStep || !currentStep.maneuver || !currentStep.maneuver.location) return;
+            let stepLng, stepLat;
+            if (Array.isArray(currentStep.maneuver.location)) { [stepLng, stepLat] = currentStep.maneuver.location; }
+            else { stepLng = currentStep.maneuver.location.lng; stepLat = currentStep.maneuver.location.lat; }
+            if (isNaN(stepLng) || isNaN(stepLat)) return;
+
+            const distanceToManeuver = getDistanceFromLatLonInMeters(driverLat, driverLng, stepLat, stepLng);
+            const distEl = document.getElementById('nav-distance');
+            if (!distEl) return;
+
+            if (distanceToManeuver < 8) {
+                distEl.textContent = 'AHORA';
+            } else if (distanceToManeuver < 1000) {
+                const rounded = Math.max(5, Math.round(distanceToManeuver / 5) * 5);
+                distEl.textContent = `${rounded} m`;
+            } else {
+                distEl.textContent = `${(distanceToManeuver / 1000).toFixed(1)} km`;
             }
         }
 
@@ -2558,25 +2925,35 @@
             else if (modifier.includes('uturn')) iconClass = 'fa-undo';
             else if (type === 'arrive') iconClass = 'fa-flag-checkered';
             else if (type === 'roundabout' || type === 'rotary') iconClass = 'fa-sync-alt';
+
             panel.classList.add('active');
             document.getElementById('nav-icon').className = `fas ${iconClass}`;
-            const dist = step.distance || 0;
-            document.getElementById('nav-distance').textContent = dist < 1000 ? `${Math.round(dist)} m` : `${(dist/1000).toFixed(1)} km`;
             document.getElementById('nav-text').textContent = translateInstruction(step.maneuver.instruction || 'Sigue la ruta');
+
+            if (currentPosition) {
+                updateLiveNavigationDistance(currentPosition[0], currentPosition[1]);
+            } else {
+                const dist = step.distance || 0;
+                document.getElementById('nav-distance').textContent = dist < 1000
+                    ? `${Math.round(dist)} m`
+                    : `${(dist / 1000).toFixed(1)} km`;
+            }
         }
 
         function clearRoute() {
             if (!map) return;
-            try {
-                if (map.getLayer('route-line')) map.removeLayer('route-line');
-                if (map.getLayer('route-line-bg')) map.removeLayer('route-line-bg');
-                if (map.getSource('route')) map.removeSource('route');
-                if (map.getSource('route-remaining')) map.removeSource('route-remaining');
-            } catch (e) {}
+            const layersToRemove = ['route-line', 'route-line-bg', 'route-line-remaining', 'route-highlight'];
+            const sourcesToRemove = ['route', 'route-remaining', 'route-highlight-source'];
+            layersToRemove.forEach(layerId => {
+                try { if (map.getLayer(layerId)) map.removeLayer(layerId); } catch (e) {}
+            });
+            sourcesToRemove.forEach(sourceId => {
+                try { if (map.getSource(sourceId)) map.removeSource(sourceId); } catch (e) {}
+            });
             routeLayers = [];
-            if (pickupMarker) { pickupMarker.remove(); pickupMarker = null; }
-            if (dropoffMarker) { dropoffMarker.remove(); dropoffMarker = null; }
-            if (maneuverArrowMarker) { maneuverArrowMarker.remove(); maneuverArrowMarker = null; }
+            if (pickupMarker) { try { pickupMarker.remove(); } catch(e) {} pickupMarker = null; }
+            if (dropoffMarker) { try { dropoffMarker.remove(); } catch(e) {} dropoffMarker = null; }
+            if (maneuverArrowMarker) { try { maneuverArrowMarker.remove(); } catch(e) {} maneuverArrowMarker = null; }
             currentNavigationSteps = []; currentNavigationIndex = 0;
             window.currentRouteCoords = null;
             window.currentRouteDistance = 0;
@@ -2584,7 +2961,8 @@
             lastRouteProgressIndex = 0;
             offRouteStartTime = null;
             if (window.speechSynthesis) window.speechSynthesis.cancel();
-            document.getElementById('navigation-panel').classList.remove('active');
+            const navPanel = document.getElementById('navigation-panel');
+            if (navPanel) navPanel.classList.remove('active');
         }
 
         async function redirectRoute() {
@@ -2746,7 +3124,19 @@
                     }
                     previousCoord = { lat: gpsLat, lng: gpsLng };
 
-                    if (enNavegacion && currentNavigationSteps && currentNavigationSteps.length > 0) checkAndAdvanceManeuver(renderLat, renderLng);
+                    // En modo preview no hacemos lógica de maniobras
+                    if (previewRouteActive) {
+                        if (map && mapInitialized) { updateDriverMarker(gpsLat, gpsLng, bearing); updateDebugStatus(); }
+                        if (now - lastUpdateTime > UPDATE_INTERVAL) { lastUpdateTime = now; updateDriverStatus(true, gpsLat, gpsLng); }
+                        if (speedKmh > 5) { isCurrentlyMoving = true; lastMovingTime = now; }
+                        else if (isCurrentlyMoving && (now - lastMovingTime) > 5000) { isCurrentlyMoving = false; }
+                        return;
+                    }
+
+                    if (enNavegacion && currentNavigationSteps && currentNavigationSteps.length > 0) {
+                        checkAndAdvanceManeuver(renderLat, renderLng);
+                        updateLiveNavigationDistance(renderLat, renderLng);
+                    }
                     if (currentRideStatus === 'en_curso') updateActionButtons();
 
                     if (enNavegacion && map && mapInitialized && map.getSource('route-remaining') && window.currentRouteCoords && window.currentRouteCoords.length > 2) {
@@ -2755,7 +3145,6 @@
                         const snap = window.currentRouteSnap;
                         const segIdx = Math.max(0, Math.min(snap && Number.isFinite(snap.segmentIndex) ? snap.segmentIndex : lastRouteProgressIndex, coords.length - 2));
                         const remainingCoords = [];
-                        const snapDistance = snap && Number.isFinite(snap.distance) ? snap.distance : Infinity;
                         if (snap && Number.isFinite(snap.lat) && Number.isFinite(snap.lng)) {
                             const gpsToSnap = getDistanceFromLatLonInMeters(gpsLat, gpsLng, snap.lat, snap.lng);
                             if (gpsToSnap <= 20) remainingCoords.push([gpsLng, gpsLat]);
@@ -2973,7 +3362,7 @@
 
         document.getElementById('chatInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendCentralMessage(); });
 
-        dlog('App iniciada. v1.7 — Finalizar viaje a 25m + Modal QR/Efectivo', 'success');
+        dlog('App iniciada. v19 — Preview 2D pre-aceptación + Reroute rápido + Sin flecha circular', 'success');
     </script>
 </body>
 </html>
